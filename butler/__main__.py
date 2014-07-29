@@ -12,17 +12,35 @@ def serve():
     reactor.run()
     return 0
 
-def client():
-    from twisted.internet import reactor, stdio
+def ask(method, *params):
+    from twisted.internet import defer, reactor
+    from txjsonrpc import jsonrpclib
+    from txjsonrpc.web.jsonrpc import Proxy
 
-    from client import Client
+    def printValue(value):
+        if value is None:
+            print 'Success'
+        else:
+            print 'Result: %s' % str(value)
+        reactor.stop()
 
-    stdio.StandardIO(Client('http://127.0.0.1:6969/'))
+    def printError(error):
+        e = error.value
+        if isinstance(e, jsonrpclib.Fault):
+            print 'Fault %i: %s' % (e.faultCode, str(e.faultString))
+        else:
+            print 'Error: %s' % str(e)
+        reactor.stop()
+
+    proxy = Proxy('http://127.0.0.1:6969/')
+    d = proxy.callRemote(method, *params)
+    d.addCallbacks(printValue, printError)
     reactor.run()
+    return 0
 
 def main(argv):
-    if argv[1:] == ['--client']:
-        return client()
+    if len(argv) > 1:
+        return ask(argv[1], *argv[2:])
     else:
         return serve()
 

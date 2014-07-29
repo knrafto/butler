@@ -30,6 +30,7 @@ class Session:
         self._pending = reactor.callLater(timeout, self._process_events)
 
     def login(self, username=None, password=None):
+        """Asynchronously log in to Spotify."""
         d = defer.Deferred()
 
         def logged_in(session, error_type):

@@ -1,6 +1,7 @@
 import sys
 
 def serve():
+    # TODO: logging
     from twisted.internet import reactor
     from twisted.web import server
 

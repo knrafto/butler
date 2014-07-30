@@ -65,7 +65,7 @@ class Session:
         """Play or pause playback."""
         self._session.player.play(play)
 
-    def search(self, query):
+    def _search(self, query):
         """Asynchronously load a search."""
         d = defer.Deferred()
 
@@ -78,3 +78,9 @@ class Session:
 
         self._session.search(query, loaded)
         return d
+
+    @defer.inlineCallbacks
+    def search_title(self, title):
+        """Asynchronously load a list of tracks based on title."""
+        search = yield self._search('title:"%s"' % title)
+        defer.returnValue(search.tracks)

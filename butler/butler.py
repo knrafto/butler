@@ -1,5 +1,6 @@
 import functools
 from os import path
+
 from twisted.internet import defer
 from txjsonrpc import jsonrpclib
 from txjsonrpc.web.jsonrpc import JSONRPC
@@ -50,6 +51,7 @@ class Butler(JSONRPC):
     @defer.inlineCallbacks
     def spotify_play_song(self, title):
         """Search for and play a song on Spotify."""
+        # TODO bad things happen when called without logging in
         try:
             results = yield self._spotify.search('title:"%s"' % title)
             if not results.tracks:

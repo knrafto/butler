@@ -22,7 +22,8 @@ def ask(method, *params):
             print 'Success'
         else:
             print 'Result: %s' % str(value)
-        reactor.stop()
+        if reactor.running:
+            reactor.stop()
 
     def printError(error):
         e = error.value
@@ -30,7 +31,8 @@ def ask(method, *params):
             print 'Fault %i: %s' % (e.faultCode, str(e.faultString))
         else:
             print 'Error: %s' % str(e)
-        reactor.stop()
+        if reactor.running:
+            reactor.stop()
 
     proxy = Proxy('http://127.0.0.1:6969/')
     d = proxy.callRemote(method, *params)

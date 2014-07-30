@@ -1,6 +1,8 @@
 from os import path
-from twisted.internet import defer, reactor
+import sys
+
 import spotify
+from twisted.internet import defer, reactor
 
 SpotifyError = spotify.LibError
 
@@ -14,8 +16,12 @@ class Session:
         config.settings_location = path.expanduser(path.join('~', '.' + name, 'spotify'))
 
         self._session = spotify.Session(config=config)
+
         # TODO: better (non-blocking) sink
-        self._sink = spotify.AlsaSink(self._session)
+        if sys.platform.startswith('linux'):
+            self._sink = spotify.AlsaSink(self._session)
+        else:
+            self._sink = spotify.PortAudioSink(self._session)
 
         self._pending = None
         self._process_events()

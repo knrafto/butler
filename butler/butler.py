@@ -30,6 +30,35 @@ class Butler(JSONRPC):
         except txspotify.SpotifyError as e:
             raise jsonrpclib.Fault(e.error_type, str(e))
 
+    @method
+    def spotify_play(self):
+        """Resume spotify playback."""
+        try:
+            self._spotify.play()
+        except txspotify.SpotifyError as e:
+            raise jsonrpclib.Fault(e.error_type, str(e))
+
+    @method
+    def spotify_pause(self):
+        """Pause spotify playback."""
+        try:
+            self._spotify.play(False)
+        except txspotify.SpotifyError as e:
+            raise jsonrpclib.Fault(e.error_type, str(e))
+
+    @method
+    @defer.inlineCallbacks
+    def spotify_play_song(self, title):
+        """Search for and play a song on Spotify."""
+        try:
+            results = yield self._spotify.search('title:"%s"' % title)
+            if not results.tracks:
+                raise Exception('No track with name "%s" found.' % title)
+            self._spotify.load(results.tracks[0])
+            self._spotify.play()
+        except txspotify.SpotifyError as e:
+            raise jsonrpclib.Fault(e.error_type, str(e))
+
     def _getFunction(self, functionPath):
         """Find a method and call that one."""
         f = getattr(self, functionPath, None)

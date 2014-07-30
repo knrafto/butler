@@ -14,6 +14,8 @@ class Session:
         config.settings_location = path.expanduser(path.join('~', '.' + name, 'spotify'))
 
         self._session = spotify.Session(config=config)
+        # TODO: better (non-blocking) sink
+        self._sink = spotify.AlsaSink(self._session)
 
         self._pending = None
         self._process_events()
@@ -24,6 +26,7 @@ class Session:
         self._session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, notify)
 
     def _process_events(self):
+        """Process spotify events and schedule the next timeout."""
         if self._pending and self._pending.active():
             self._pending.cancel()
         timeout = self._session.process_events() / 1000.0
@@ -46,4 +49,26 @@ class Session:
             self._session.relogin()
         else:
             self._session.login(username, password, remember_me=True);
+        return d
+
+    def load(self, track):
+        """Load a track for playback."""
+        self._session.player.load(track)
+
+    def play(self, play=True):
+        """Play or pause playback."""
+        self._session.player.play(play)
+
+    def search(self, query):
+        """Asynchronously load a search."""
+        d = defer.Deferred()
+
+        def loaded(search):
+            if search.error == spotify.ErrorType.OK:
+                d.callback(search)
+            else:
+                d.errback(spotify.LibError(search.error))
+            return False
+
+        self._session.search(query, loaded)
         return d

@@ -1,40 +1,40 @@
+#!/usr/bin/env python
+
 import sys
 
 def serve():
     # TODO: logging
     from twisted.internet import reactor
-    from twisted.web import server
+    from twisted.web import server, xmlrpc
 
-    from butler import Butler
+    from butler import libspotify
 
-    b = Butler()
+    name = 'butler'
+
+    rpc = xmlrpc.XMLRPC()
+    rpc.subHandlers = {
+        'spotify': libspotify.Spotify(name)
+    }
+
     # TODO: port and address
-    reactor.listenTCP(6969, server.Site(b))
+    reactor.listenTCP(6969, server.Site(rpc))
     reactor.run()
     return 0
 
 def ask(method, *params):
     from twisted.internet import defer, reactor
-    from txjsonrpc import jsonrpclib
-    from txjsonrpc.web.jsonrpc import Proxy
-
+    from twisted.web.xmlrpc import Proxy
     def printValue(value):
-        if value is None:
+        if value is True:
             print 'Success'
         else:
             print 'Result: %s' % str(value)
         if reactor.running:
             reactor.stop()
-
     def printError(error):
-        e = error.value
-        if isinstance(e, jsonrpclib.Fault):
-            print 'Fault %i: %s' % (e.faultCode, str(e.faultString))
-        else:
-            print 'Error: %s' % str(e)
+        print 'Error: %s' % str(error.value)
         if reactor.running:
             reactor.stop()
-
     proxy = Proxy('http://127.0.0.1:6969/')
     d = proxy.callRemote(method, *params)
     d.addCallbacks(printValue, printError)

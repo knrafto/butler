@@ -11,7 +11,7 @@ def serve():
 
     name = 'butler'
 
-    rpc = xmlrpc.XMLRPC(allowNone=True)
+    rpc = xmlrpc.XMLRPC()
     rpc.subHandlers = {
         'spotify': libspotify.Spotify(name)
     }

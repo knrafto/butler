@@ -9,11 +9,6 @@ from twisted.web import xmlrpc
 
 import handler
 
-def spotifyFault(e):
-    if not isinstance(e, spotify.LibError):
-        e = spotify.LibError(e)
-    return xmlrpc.Fault(int(e.error_type), str(e))
-
 class Lazy(object):
     """A object that may be loaded later."""
     def __init__(self, value):
@@ -75,9 +70,10 @@ class Track(object):
         return self._track
 
     @classmethod
-    def load(session, track):
+    def load(cls, track):
         """Asynchronously wait for a track's metadata to be loaded."""
         d = defer.Deferred()
+        session = track._session
 
         def check_loaded(session):
             if track.is_loaded:
@@ -92,6 +88,7 @@ class Track(object):
         if not check_loaded(session) is False:
             session.on(spotify.SessionEvent.METADATA_UPDATED, check_loaded)
 
+        handler.setTimeout(d, 5)
         return d
 
     _props = (
@@ -149,9 +146,10 @@ class Playlist(object):
         self._track_set_pos += 1
 
     @classmethod
-    def load(session, playlist):
+    def load(cls, playlist):
         """Asynchronously wait for a playlist to be loaded."""
         d = defer.Deferred()
+        session = playlist._session
 
         def check_loaded(session):
             if playlist.is_loaded:
@@ -164,8 +162,9 @@ class Playlist(object):
                 return False
 
         if not check_loaded(session) is False:
-            playlist.on(spotify.SessionEvent.METADATA_UPDATED, check_loaded)
+            playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
 
+        handler.setTimeout(d, 5)
         return d
 
     _props = (
@@ -181,6 +180,8 @@ for prop in Playlist._props:
 
 class Spotify(handler.Handler):
     def __init__(self, name):
+        super(Spotify, self).__init__(self._spotifyFault)
+
         # TODO: lockfiles, better way to get folders
         # TODO: more settings
         config = spotify.Config()
@@ -218,6 +219,11 @@ class Spotify(handler.Handler):
 
         # Search
         self._last_choice = None # Choice
+
+    def _spotifyFault(self, failure):
+        failure.trap(spotify.LibError)
+        e = failure.value
+        raise xmlrpc.Fault(int(e.error_type), str(e))
 
     def _process_events(self):
         """Process spotify events and schedule the next timeout."""
@@ -276,11 +282,11 @@ class Spotify(handler.Handler):
     @handler.method
     def connection_state(self, *args):
         states = {
-            0: 'LOGGED_OUT',
-            1: 'LOGGED_IN',
-            2: 'DISCONNECTED',
-            3: 'UNDEFINED',
-            4: 'OFFLINE'
+            0: 'logged out',
+            1: 'logged in',
+            2: 'disconnected',
+            3: 'undefined',
+            4: 'offline'
         }
         return states[self._session.connection.state]
 

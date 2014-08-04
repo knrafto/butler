@@ -19,7 +19,7 @@ class Lazy(object):
             deferred.callback(value)
         self._deferred = deferred
 
-    def wait(self):
+    def wait(self, timeout=None):
         """Wait for the object to be available."""
         d = defer.Deferred()
 
@@ -28,6 +28,8 @@ class Lazy(object):
             return result
 
         self._deferred.addBoth(notify)
+        if timeout is not None:
+            handler.setTimeout(d, timeout)
         return d
 
 class Choice(object):
@@ -38,9 +40,9 @@ class Choice(object):
             raise ValueError('Empty choice')
         self._seek(index)
 
-    def wait(self):
+    def wait(self, timeout=None):
         """Wait for the current choice to be loaded."""
-        return self._choices[self._index].wait()
+        return self._choices[self._index].wait(timeout)
 
     def next(self):
         """Go to the previous result."""
@@ -88,7 +90,6 @@ class Track(object):
         if not check_loaded(session) is False:
             session.on(spotify.SessionEvent.METADATA_UPDATED, check_loaded)
 
-        handler.setTimeout(d, 5)
         return d
 
     _props = (
@@ -130,7 +131,7 @@ class Playlist(object):
         self._track_set_pos = 0
         # TODO: tracks added, removed
 
-    def current_track(self):
+    def current_track(self, timeout=None):
         """Asynchronously wait for the current Spotify track."""
         try:
             lazy = self._track_set[self._track_set_pos]
@@ -139,7 +140,7 @@ class Playlist(object):
             d.callback(None)
             return d
         else:
-            return lazy.wait()
+            return lazy.wait(timeout)
 
     def advance(self):
         """Advance to the next track."""
@@ -164,7 +165,6 @@ class Playlist(object):
         if not check_loaded(session) is False:
             playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
 
-        handler.setTimeout(d, 5)
         return d
 
     _props = (
@@ -207,6 +207,8 @@ class Spotify(handler.Handler):
         self._session.on(spotify.SessionEvent.START_PLAYBACK, self.unpause)
         self._session.on(spotify.SessionEvent.STOP_PLAYBACK, self.pause)
         self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
+
+        self._timeout = 5
 
         # Playback
         self._history = [] # list of Tracks
@@ -257,7 +259,7 @@ class Spotify(handler.Handler):
             self._session.login(username, password, remember_me=True);
         else:
             raise xmlrpc.Fault(1, "password required")
-        handler.setTimeout(d, 5)
+        handler.setTimeout(d, self._timeout)
         return d
 
     @defer.inlineCallbacks
@@ -266,10 +268,10 @@ class Spotify(handler.Handler):
         # TODO: prefetch
         track = None
         if self._track_queue:
-            track = yield self._track_queue[0].wait()
+            track = yield self._track_queue[0].wait(self._timeout)
         elif self._playlist:
-            playlist = yield self._playlist.wait()
-            track = yield playlist.current_track()
+            playlist = yield self._playlist.wait(self._timeout)
+            track = yield playlist.current_track(self._timeout)
 
         if track and track is not self._current_track:
             self._session.player.load(track.backing_track)
@@ -317,7 +319,7 @@ class Spotify(handler.Handler):
         if self._track_queue:
             self._track_queue.pop(0)
         elif self._playlist:
-            playlist = yield self._playlist.wait()
+            playlist = yield self._playlist.wait(self._timeout)
             playlist.advance()
 
         if self._current_track:
@@ -374,7 +376,7 @@ class Spotify(handler.Handler):
             return False
 
         self._session.search(query, loaded)
-        handler.setTimeout(d, 5)
+        handler.setTimeout(d, self._timeout)
         return d
 
     @defer.inlineCallbacks

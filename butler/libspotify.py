@@ -28,6 +28,12 @@ def faultOnError(f):
             raise spotifyFault(e)
     return g
 
+def head(lst):
+    try:
+        return lst[0]
+    except IndexError:
+        return None
+
 class Cursor:
     """A position in a list of choices."""
     def __init__(self, choices, index=None):
@@ -141,21 +147,31 @@ class Spotify(handler.Handler):
     def _sync_player(self, *args):
         """Load and play the current track."""
         # TODO: prefetch
-        track = None
+        self._current_track = None
         if self._track_queue:
-            track = self._track_queue[0].value
+            self._current_track = self._track_queue[0].value
         elif self._playlist:
-            track = self._playlist.value.value
+            self._current_track = self._playlist.value.value
 
-        if track and track != self._current_track:
-            self._session.player.load(track)
+        if self._current_track:
+            self._session.player.load(self._current_track)
 
-        self._current_track = track
-        if track and self._playing:
+        if self._current_track and self._playing:
             self.unpause()
         else:
             self._playing = False
             self.pause()
+
+    @handler.method
+    def connection_state(self, *args):
+        states = {
+            0: 'LOGGED_OUT',
+            1: 'LOGGED_IN',
+            2: 'DISCONNECTED',
+            3: 'UNDEFINED',
+            4: 'OFFLINE'
+        }
+        return states[self._session.connection.state]
 
     @handler.method
     def unpause(self, *args):
@@ -173,6 +189,11 @@ class Spotify(handler.Handler):
         self._session.player.pause()
         return True
         # TODO: return track
+
+    @handler.method
+    def paused(self, *args):
+        """Returns whether playback is running."""
+        return not self._playing
 
     @handler.method
     def next_track(self, *args):
@@ -215,7 +236,8 @@ class Spotify(handler.Handler):
         """Go to the previous result."""
         if self._last_choice:
             self._last_choice.next()
-            self._sync_player()
+            if self._last_choice in (self._playlist, head(self._track_queue)):
+                self._sync_player()
         return True
         # TODO: return track or playlist
 
@@ -224,7 +246,8 @@ class Spotify(handler.Handler):
         """Go to the next result."""
         if self._last_choice:
             self._last_choice.prev()
-            self._sync_player()
+            if self._last_choice in (self._playlist, head(self._track_queue)):
+                self._sync_player()
         return True
         # TODO: return track or playlist
 
@@ -249,8 +272,9 @@ class Spotify(handler.Handler):
     @defer.inlineCallbacks
     def play_track(self, query):
         """Play a track now."""
-        yield self.bump_track(query)
-        self.next_track()
+        cursor = yield self._search_tracks(query)
+        self._track_queue[0:1] = [cursor]
+        self._sync_player()
         defer.returnValue(True)
 
     @handler.method
@@ -259,7 +283,8 @@ class Spotify(handler.Handler):
         """Play a track next."""
         cursor = yield self._search_tracks(query)
         self._track_queue.insert(1, cursor)
-        self._sync_player()
+        if len(self._track_queue) <= 1:
+            self._sync_player()
         defer.returnValue(True)
 
     @handler.method
@@ -268,5 +293,8 @@ class Spotify(handler.Handler):
         """Place a track at the end of the queue."""
         cursor = yield self._search_tracks(query)
         self._track_queue.append(cursor)
-        self._sync_player()
+        if len(self._track_queue) <= 1:
+            self._sync_player()
         defer.returnValue(True)
+
+    # TODO: return queue, playlist, current song

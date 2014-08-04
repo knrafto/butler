@@ -25,10 +25,7 @@ def ask(method, *params):
     from twisted.internet import defer, reactor
     from twisted.web.xmlrpc import Proxy
     def printValue(value):
-        if value is True:
-            print 'Success'
-        else:
-            print 'Result: %s' % str(value)
+        print 'Result: %s' % str(value)
         if reactor.running:
             reactor.stop()
     def printError(error):

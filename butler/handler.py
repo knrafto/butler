@@ -40,13 +40,12 @@ class Handler(object, xmlrpc.XMLRPC):
                                str(failure.value))
 
         def g(*args):
-            self._logger.info('%s.%s(%s)',
-                               self._name, functionPath, ', '.join(args))
+            self._logger.info('%s.%s', self._name, functionPath)
             d = defer.maybeDeferred(f, *args)
             d.addErrback(trapInvalidMethodParams)
             if self._errback:
                 d.addErrback(self._errback)
-            d.addBoth(self._log, functionPath, *args)
+            d.addBoth(self._log, functionPath)
             d.addCallback(self._encode)
             return d
 
@@ -63,9 +62,7 @@ class Handler(object, xmlrpc.XMLRPC):
 
     def _log(self, result, functionPath, *args):
         """Log the result of an RPC call."""
-        self._logger.info('[%s.%s(%s)]: %s',
-                           self._name, functionPath, ', '.join(args),
-                           repr(result))
+        self._logger.info('[%s.%s]: %s', self._name, functionPath, str(result))
         return result
 
     def _encode(self, result):

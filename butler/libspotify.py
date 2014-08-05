@@ -2,7 +2,6 @@ import functools
 import logging
 import os
 import random
-import sys
 
 import spotify
 from twisted.internet import defer, reactor
@@ -200,7 +199,6 @@ class Spotify(handler.Handler):
         if 'log_level' in options:
             logging.getLogger(name).setLevel(options['log_level'])
 
-        # TODO: lockfile, more settings
         spotify_config = spotify.Config()
         if 'cache_dir' in options:
             spotify_config.cache_location = \
@@ -217,11 +215,7 @@ class Spotify(handler.Handler):
 
         self._session = spotify.Session(config=spotify_config)
 
-        # TODO: better (non-blocking) sink
-        if sys.platform.startswith('linux'):
-            self._sink = spotify.AlsaSink(self._session)
-        else:
-            self._sink = spotify.PortAudioSink(self._session)
+        spotify.AlsaSink(self._session)
 
         self._pending = None
         self._process_events()
@@ -230,8 +224,6 @@ class Spotify(handler.Handler):
         self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
         self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
         self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
-        self._session.on(spotify.SessionEvent.START_PLAYBACK, self.unpause)
-        self._session.on(spotify.SessionEvent.STOP_PLAYBACK, self.pause)
         self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
         self._timeout = int(options.get('timeout', 0))

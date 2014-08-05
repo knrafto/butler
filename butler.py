@@ -13,7 +13,6 @@ def serve():
 
     from butler import libspotify
 
-    # TODO: more robust
     config_file = open(os.path.expanduser(
                        os.path.join('~', '.butler', 'butler.cfg')))
     config = json.load(config_file)

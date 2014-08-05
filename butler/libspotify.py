@@ -1,5 +1,5 @@
 import functools
-from os import path
+import os
 import random
 import sys
 
@@ -179,17 +179,38 @@ for prop in Playlist._props:
     setattr(Track, prop, property(getter))
 
 class Spotify(handler.Handler):
-    def __init__(self, name):
-        super(Spotify, self).__init__(self._spotifyFault)
+    """Spotify handler.
 
-        # TODO: lockfiles, better way to get folders
-        # TODO: more settings
-        config = spotify.Config()
-        config.load_application_key_file()
-        config.cache_location = path.expanduser(path.join('~', '.cache', name, 'spotify'))
-        config.settings_location = path.expanduser(path.join('~', '.' + name, 'spotify'))
+    Settings:
+        cache_dir
+        data_dir
+        key_file
+        timeout
+    """
 
-        self._session = spotify.Session(config=config)
+    def __init__(self, config):
+        name = 'spotify'
+
+        super(Spotify, self).__init__(name, self._spotifyFault)
+
+        options = config.get('spotify', {})
+
+        # TODO: lockfile, more settings
+        spotify_config = spotify.Config()
+        if 'cache_dir' in options:
+            spotify_config.cache_location = \
+                os.path.expanduser(options['cache_dir'])
+        if 'data_dir' in options:
+            spotify_config.settings_location = \
+                os.path.expanduser(options['data_dir'])
+        if 'key_file' in options:
+            spotify_config.load_application_key_file(
+                os.path.expanduser(options['key_file']))
+
+        if not os.path.exists(spotify_config.settings_location):
+            os.makedirs(spotify_config.settings_location)
+
+        self._session = spotify.Session(config=spotify_config)
 
         # TODO: better (non-blocking) sink
         if sys.platform.startswith('linux'):
@@ -208,7 +229,7 @@ class Spotify(handler.Handler):
         self._session.on(spotify.SessionEvent.STOP_PLAYBACK, self.pause)
         self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
-        self._timeout = 5
+        self._timeout = int(options.get('timeout', 0))
 
         # Playback
         self._history = [] # list of Tracks

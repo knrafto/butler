@@ -1,4 +1,5 @@
 import functools
+import logging
 import xmlrpclib
 
 from twisted.internet import defer, reactor
@@ -21,8 +22,10 @@ def setTimeout(deferred, seconds):
     deferred.addErrback(trapCancelledError)
 
 class Handler(object, xmlrpc.XMLRPC):
-    def __init__(self, errback=None):
+    def __init__(self, name, errback=None):
+        self._name = name
         self._errback = errback
+        self._logger = logging.getLogger(name)
 
     def lookupProcedure(self, functionPath):
         """Lookup a method."""
@@ -30,7 +33,23 @@ class Handler(object, xmlrpc.XMLRPC):
         if not getattr(f, '_public', False):
             raise xmlrpc.NoSuchFunction(xmlrpclib.METHOD_NOT_FOUND,
                 "function %s not found" % functionPath)
-        return self._dispatch(f)
+
+        def trapInvalidMethodParams(failure):
+            failure.trap(TypeError)
+            raise xmlrpc.Fault(xmlrpclib.INVALID_METHOD_PARAMS,
+                               str(failure.value))
+
+        def g(*args):
+            self._logger.debug('%s.%s(%s)',
+                               self._name, functionPath, ', '.join(args))
+            d = defer.maybeDeferred(f, *args)
+            d.addErrback(trapInvalidMethodParams)
+            if self._errback:
+                d.addErrback(self._errback)
+            d.addCallback(self._encode, functionPath, *args)
+            return d
+
+        return g
 
     def listProcedures(self):
         """List all procedures."""
@@ -41,21 +60,11 @@ class Handler(object, xmlrpc.XMLRPC):
                     self._procedures.append(key)
         return self._procedures
 
-    def _dispatch(self, f):
-        def g(*args, **kwds):
-            d = defer.maybeDeferred(f, *args, **kwds)
-            d.addErrback(self._trapInvalidMethodParams)
-            if self._errback:
-                d.addErrback(self._errback)
-            d.addCallback(self._encode)
-            return d
-        return g
-
-    def _trapInvalidMethodParams(self, failure):
-        failure.trap(TypeError)
-        raise xmlrpc.Fault(xmlrpclib.INVALID_METHOD_PARAMS, str(failure.value))
-
-    def _encode(self, result):
+    def _encode(self, result, functionPath, *args):
+        """Encode the result of an RPC call."""
+        self._logger.debug('[%s.%s(%s)]: %s',
+                           self._name, functionPath, ', '.join(args),
+                           repr(result))
         if result is None:
             return True
         try:

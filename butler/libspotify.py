@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 import random
 import sys
@@ -182,6 +183,7 @@ class Spotify(handler.Handler):
     """Spotify handler.
 
     Settings:
+        log_level
         cache_dir
         data_dir
         key_file
@@ -193,7 +195,10 @@ class Spotify(handler.Handler):
 
         super(Spotify, self).__init__(name, self._spotifyFault)
 
-        options = config.get('spotify', {})
+        options = config.get(name, {})
+
+        if 'log_level' in options:
+            logging.getLogger(name).setLevel(options['log_level'])
 
         # TODO: lockfile, more settings
         spotify_config = spotify.Config()

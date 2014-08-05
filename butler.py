@@ -13,15 +13,18 @@ def serve():
 
     from butler import libspotify
 
-    data_dir = os.path.expanduser(os.path.join('~', '.butler'))
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-
-    config_file = open(os.path.join(data_dir, 'butler.cfg'))
+    # TODO: more robust
+    config_file = open(os.path.expanduser(
+                       os.path.join('~', '.butler', 'butler.cfg')))
     config = json.load(config_file)
     config_file.close()
 
-    logging.basicConfig(filename=os.path.join(data_dir, 'butler.log'))
+    if 'log_file' in config:
+        logging.basicConfig(filename=os.path.expanduser(config['log_file']))
+
+    twisted_config = config.get('twisted', {})
+    logging.getLogger('twisted').setLevel(twisted_config.get('log_level', 20))
+
     observer = log.PythonLoggingObserver(loggerName='twisted')
     observer.start()
 

@@ -21,6 +21,24 @@ def setTimeout(deferred, seconds):
     deferred.addBoth(gotResult)
     deferred.addErrback(trapCancelledError)
 
+def wait_all(deferreds, seconds=None):
+    """Asynchronously load a list."""
+    d = defer.DeferredList(deferreds,
+        fireOnOneErrback=True,
+        consumeErrors=True)
+
+    def onTracksLoaded(results):
+        return [result for _, result in results]
+
+    def unwrapFirstError(failure):
+        failure.trap(defer.FirstError)
+        return failure.value.subFailure
+
+    d.addCallbacks(onTracksLoaded, unwrapFirstError)
+    if seconds:
+        setTimeout(d, seconds)
+    return d
+
 class Handler(object, xmlrpc.XMLRPC):
     def __init__(self, name, errback=None):
         self._name = name
@@ -46,7 +64,7 @@ class Handler(object, xmlrpc.XMLRPC):
             if self._errback:
                 d.addErrback(self._errback)
             d.addBoth(self._log, functionPath)
-            d.addCallback(self._encode)
+            d.addCallback(self._encode_response)
             return d
 
         return g
@@ -65,11 +83,17 @@ class Handler(object, xmlrpc.XMLRPC):
         self._logger.info('[%s.%s]: %s', self._name, functionPath, str(result))
         return result
 
-    def _encode(self, result):
+    def _encode_response(self, result):
         """Encode the result of an RPC call."""
+        if hasattr(result, 'encode_response'):
+            value = result.encode_response()
+            return self._encode_response(value)
+
         if result is None:
-            return True
-        try:
-            return result.encode_response()
-        except (AttributeError, NotImplementedError):
-            return result
+            return False
+        elif isinstance(result, list):
+            return [self._encode_response(item) for item in result]
+        elif isinstance(result, dict):
+            return {key: self._encode_response(value)
+                for key, value in result.iteritems()}
+        return result

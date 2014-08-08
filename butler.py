@@ -1,67 +1,72 @@
 #!/usr/bin/env python
 
-import os
-import sys
-
 def serve():
+    import os
     import json
-    import logging
 
-    from twisted.internet import reactor
-    from twisted.python import log
-    from twisted.web import server, xmlrpc
+    import gevent
+    import gevent.wsgi
+    import gevent.queue
+    from tinyrpc.dispatch import RPCDispatcher
+    from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
+    from tinyrpc.transports.wsgi import WsgiServerTransport
+    from tinyrpc.server.gevent import RPCServerGreenlets
 
     from butler import libspotify
 
-    config_file = open(os.path.expanduser(
-                       os.path.join('~', '.butler', 'butler.cfg')))
+    config_file = open(
+        os.path.expanduser(os.path.join('~', '.butler', 'butler.cfg')))
     config = json.load(config_file)
     config_file.close()
 
-    if 'log_file' in config:
-        logging.basicConfig(filename=os.path.expanduser(config['log_file']))
-
-    twisted_config = config.get('twisted', {})
-    logging.getLogger('twisted').setLevel(twisted_config.get('log_level', 20))
-
-    observer = log.PythonLoggingObserver(loggerName='twisted')
-    observer.start()
-
-    rpc = xmlrpc.XMLRPC()
-    rpc.subHandlers = {
-        'spotify': libspotify.Spotify(config)
+    handlers = {
+        'spotify': libspotify.Spotify
     }
 
-    # TODO: port and address
-    reactor.listenTCP(6969, server.Site(rpc))
-    reactor.run()
-    return 0
+    dispatcher = RPCDispatcher()
+    for prefix, cls in handlers.iteritems():
+        handler_config = config.get(prefix, {})
+        handler = cls(handler_config)
+        dispatcher.register_instance(handler, prefix + '.')
 
-def ask(method, *params):
-    from twisted.internet import defer, reactor
-    from twisted.web.xmlrpc import Proxy
+    transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 
-    def printValue(value):
-        print 'Result: %s' % str(value)
-        if reactor.running:
-            reactor.stop()
+    # start wsgi server as a background greenlet
+    wsgi_server = gevent.wsgi.WSGIServer(('127.0.0.1', 6969), transport.handle)
+    gevent.spawn(wsgi_server.serve_forever)
 
-    def printError(error):
-        print 'Error: %s' % str(error.value)
-        if reactor.running:
-            reactor.stop()
+    rpc_server = RPCServerGreenlets(
+        transport,
+        JSONRPCProtocol(),
+        dispatcher
+    )
 
-    proxy = Proxy('http://127.0.0.1:6969/')
-    d = proxy.callRemote(method, *params)
-    d.addCallbacks(printValue, printError)
-    reactor.run()
-    return 0
+    try:
+        rpc_server.serve_forever()
+    except KeyboardInterrupt:
+        pass
 
-def main(argv):
-    if len(argv) > 1:
-        return ask(argv[1], *argv[2:])
+def ask(method, *args):
+    from tinyrpc.exc import RPCError
+    from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
+    from tinyrpc.transports.http import HttpPostClientTransport
+    from tinyrpc import RPCClient
+
+    rpc_client = RPCClient(
+        JSONRPCProtocol(),
+        HttpPostClientTransport('http://127.0.0.1:6969/')
+    )
+
+    try:
+        result = rpc_client.call(method, args, {})
+    except RPCError as e:
+        print e.message
     else:
-        return serve()
+        print result
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    import sys
+    if len(sys.argv) > 1:
+        ask(sys.argv[1], *sys.argv[2:])
+    else:
+        serve()

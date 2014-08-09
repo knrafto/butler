@@ -463,56 +463,56 @@ class Spotify(object):
     #     self._last_choice = choice
     #     defer.returnValue(choice)
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def play_track(self, query):
-    #     """Play a track now."""
-    #     choice = yield self._search_tracks(query)
-    #     self._track_queue[0:1] = [choice]
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def play_track(self, query):
+        """Play a track now."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_tracks(query)
+            self._track_queue[0:1] = [choice]
+            self._sync_player()
+            return choice.value().encode()
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def bump_track(self, query):
-    #     """Play a track next."""
-    #     choice = yield self._search_tracks(query)
-    #     self._track_queue.insert(1, choice)
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def bump_track(self, query):
+        """Play a track next."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_tracks(query)
+            self._track_queue.insert(1, choice)
+            self._sync_player()
+            return choice.value().encode()
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def queue_track(self, query):
-    #     """Place a track at the end of the queue."""
-    #     choice = yield self._search_tracks(query)
-    #     self._track_queue.append(choice)
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def queue_track(self, query):
+        """Place a track at the end of the queue."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_tracks(query)
+            self._track_queue.append(choice)
+            self._sync_player()
+            return choice.value().encode()
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def play_playlist(self, query):
-    #     """Play a playlist now."""
-    #     choice = yield self._search_playlists(query)
-    #     self._playlist_queue[0:1] = [choice]
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def play_playlist(self, query):
+        """Play a playlist now."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_playlists(query)
+            self._playlist_queue[0:1] = [choice]
+            self._sync_player()
+            return choice.value().encode()
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def bump_playlist(self, query):
-    #     """Play a playlist next."""
-    #     choice = yield self._search_playlists(query)
-    #     self._playlist_queue.insert(1, choice)
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def bump_playlist(self, query):
+        """Play a playlist next."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_playlists(query)
+            self._playlist_queue.insert(1, choice)
+            self._sync_player()
+            return choice.value().encode()
 
-    # @handler.method
-    # @defer.inlineCallbacks
-    # def queue_playlist(self, query):
-    #     """Place a playlist at the end of the queue."""
-    #     choice = yield self._search_playlists(query)
-    #     self._playlist_queue.append(choice)
-    #     self._sync_player()
-    #     defer.returnValue(self.last_result())
+    @public
+    def queue_playlist(self, query):
+        """Place a playlist at the end of the queue."""
+        with gevent.event.Timeout(self._timeout):
+            choice = self._search_playlists(query)
+            self._playlist_queue.append(choice)
+            self._sync_player()
+            return choice.value().encode()

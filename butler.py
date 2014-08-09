@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 def serve():
     import os
@@ -60,9 +61,10 @@ def ask(method, *args):
     try:
         result = rpc_client.call(method, args, {})
     except RPCError as e:
-        print e.message
+        print(e.message, file=sys.stderr)
+        sys.exit(1)
     else:
-        print result
+        print(result)
 
 if __name__ == '__main__':
     import sys

@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 import os
 import random
+import sys
 
 import gevent
 import gevent.event
@@ -9,35 +12,31 @@ from tinyrpc.dispatch import public
 
 # class Choice(object):
 #     """A list of choices from a Spotify search."""
-#     def __init__(self, selector):
-#         """Create an empty choice."""
-#         self._selector = selector
-#         self._results = []
+#     def __init__(self, session, query, search_type, stride):
+#         self._items = []
 #         self._index = 0
 
-#     @property
-#     def value(self):
-#         """The current choice."""
+#         self._result = gevent.event.AsyncResult()
+#         session.search(query, self._loaded, **kwds)
+#         gevent.spawn(self._append_result)
+
+#     def value(self, timeout=None):
 #         try:
-#             return self._results[self._index]
+#             return self._items[self._index]
 #         except IndexError:
 #             return None
 
-#     @defer.inlineCallbacks
 #     def next(self):
-#         """Asynchronously go to the next result."""
 #         self._index += 1
-#         if self._index >= len(self._results):
-#             results = yield self._more()
+#         if self._index >= len(self._items):
+#             results = self._more()
 #             self._append_results(results)
-#         if self._index >= len(self._results):
-#             self._index = len(self._results) - 1
+#         if self._index >= len(self._items):
+#             self._index = len(self._items) - 1
 
 #     def prev(self):
-#         """Asynchronously go to the previous result."""
 #         if self._index > 0:
 #             self._index -= 1
-#         return defer.maybeDeferred(None)
 
 #     def _loaded(self, deferred, search):
 #         try:
@@ -52,32 +51,19 @@ from tinyrpc.dispatch import public
 #             deferredList.chainDeferred(deferred)
 #         return False
 
-#     def _append_results(self, results):
-#         """Append the results of a search."""
+#     def _append_result(self):
+#         results = self._result.get()
+#         self._result = None
 #         if not results:
-#             raise xmlrpc.Fault(1, 'no results')
-#         self._results.extend(results)
+#             raise ValueError('No results')
+#         self._items.extend(results)
 
 #     def _more(self):
 #         """Asynchronously load more results."""
-#         d = defer.Deferred()
-
-#         self._last_search.more(lambda search: choice._loaded(d, search))
-#         return d
-
-#     @classmethod
-#     def search(cls, session, query, selector, **kwds):
-#         """Asynchronously load a search."""
-#         choice = Choice(selector)
-#         d = defer.Deferred()
-
-#         def load_first(results):
-#             choice._append_results(results)
-#             return choice
-
-#         session.search(query, lambda search: choice._loaded(d, search), **kwds)
-#         d.addCallback(load_first)
-#         return d
+#         self._result = gevent.event.AsyncResult()
+#         self._last_search.more(self._loaded)
+#         gevent.spawn(self._append_result)
+#         return result.get()
 
 class Track(object):
     def __init__(self, track):
@@ -98,15 +84,18 @@ class Track(object):
     def data(self):
         return self._track
 
-    def encode(self, timeout=None):
-        track = self._result.get(timeout)
+    def get(self, timeout=None):
+        return self._result.get(timeout)
+
+    def encode(self):
+        track = self.get()
         return {
             'type': 'Track',
             'name': track.name,
             'uri': track.link.uri
         }
 
-    def _load(self):
+    def _loaded(self):
         if not self._track.is_loaded:
             return False
 
@@ -118,55 +107,55 @@ class Track(object):
             self._result.set(self._track)
         return True
 
-# class Playlist(object):
-#     """A loaded, shuffled, and partially-played playlist."""
-#     def __init__(self, playlist):
-#         """Create from a loaded Spotify playlist."""
-#         if not playlist.is_loaded:
-#             raise spotify.LibError(spotify.ErrorType.IS_LOADING)
-#         self._playlist = playlist
-#         # TODO: better shuffle
-#         self._track_set = [Track(track) for track in playlist.tracks]
-#         random.shuffle(self._track_set)
-#         # TODO: tracks added, removed
+class Playlist(object):
+    def __init__(self, playlist, shuffle=False):
+        if isinstance(playlist, spotify.SearchPlaylist):
+            playlist = playlist.playlist
 
-#     @property
-#     def track_set(self):
-#         """The current list of tracks."""
-#         return self._track_set
+        self._playlist = playlist
+        self._shuffle = shuffle
+        self._result = gevent.event.AsyncResult()
 
-#     def encode_response(self):
-#         return {
-#             'type': 'Playlist',
-#             'name': self._playlist.name,
-#             'uri': self._playlist.link.uri
-#         }
+        def check_loaded(playlist):
+            if self._loaded():
+                return False
 
-#     @classmethod
-#     def load(cls, playlist):
-#         """Asynchronously load a playlist."""
-#         if isinstance(playlist, spotify.SearchPlaylist):
-#             print playlist.name
-#             playlist = playlist.playlist
+        if not self._loaded():
+            playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
+        # TODO: tracks added, removed
 
-#         d = defer.Deferred()
-#         session = playlist._session
+    def get(self, timeout=None):
+        return self._result.get(timeout)
 
-#         def onTracksLoaded(result):
-#             print 'tracks loaded!'
-#             return cls(playlist)
+    def track_set(self):
+        self.get()
+        return self._track_set
 
-#         def check_loaded(session):
-#             if playlist.is_loaded:
-#                 print 'loaded!'
-#                 tracks = handler.wait_all(
-#                     [Track.load(track) for track in playlist.tracks])
-#                 tracks.addCallback(onTracksLoaded)
-#                 tracks.chainDeferred(d)
+    def next(self):
+        self.get()
+        try:
+            self._track_set.pop(0)
+        except IndexError:
+            pass
 
-#         if not check_loaded(session) is False:
-#             playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
-#         return d
+    def encode(self):
+        playlist = self.get()
+        return {
+            'type': 'Playlist',
+            'name': playlist.name,
+            'uri': playlist.link.uri
+        }
+
+    def _loaded(self):
+        if not self._playlist.is_loaded:
+            return False
+
+        self._track_set = [Track(track) for track in self._playlist.tracks]
+        if self._shuffle:
+            random.shuffle(self._track_set)
+
+        self._result.set(self._playlist)
+        return True
 
 class Spotify(object):
     """Spotify handler.
@@ -179,7 +168,6 @@ class Spotify(object):
         timeout
         results
     """
-
     def __init__(self, config):
         name = 'spotify'
 
@@ -206,12 +194,12 @@ class Spotify(object):
         self._notify()
 
         self._session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, self._notify)
-        # self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
-        # self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
-        # self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
+        self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
+        self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
+        self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
         # self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
-        self._timeout = int(config.get('timeout', 20))
+        self._timeout = int(config.get('timeout', 30))
 
         # Playback
         self._playing = False
@@ -232,7 +220,10 @@ class Spotify(object):
             except Queue.Empty:
                 gevent.sleep(0.001) # spin
             else:
-                timeout = self._session.process_events() / 1000.0
+                try:
+                    timeout = self._session.process_events() / 1000.0
+                except Exception as e:
+                    print(e, file=sys.stderr)
                 gevent.spawn_later(timeout, self._notify)
 
     def _notify(self, *args):
@@ -263,139 +254,148 @@ class Spotify(object):
 
         result.get(self._timeout)
 
-    # @handler.method
-    # def connection_state(self, *args):
-    #     states = {
-    #         0: 'logged out',
-    #         1: 'logged in',
-    #         2: 'disconnected',
-    #         3: 'undefined',
-    #         4: 'offline'
-    #     }
-    #     return states[self._session.connection.state]
+    @public
+    def connection_state(self, *args):
+        states = [
+            'Logged out',
+            'Logged in',
+            'Disconnected',
+            'Undefined',
+            'Offline'
+        ]
+        return states[self._session.connection.state]
 
-    # @handler.method
-    # def paused(self, *args):
-    #     """Returns whether playback is running."""
-    #     return not self._playing
+    @public
+    def paused(self, *args):
+        """Returns whether playback is running."""
+        return not self._playing
 
-    # @handler.method
-    # def current_track(self, *args):
-    #     """Return the currently playing track."""
-    #     return self._current_track
+    @handler.method
+    def unpause(self, *args):
+        """Resume spotify playback."""
+        if self._current_track:
+            self._playing = True
+            self._session.player.play()
+        return self._playing
 
-    # @handler.method
-    # def history(self, *args):
-    #     """Return the track history."""
-    #     return self._history
+    @handler.method
+    def pause(self, *args):
+        """Pause spotify playback."""
+        self._playing = False
+        self._session.player.pause()
+        return True
 
-    # @handler.method
-    # def track_queue(self, *args):
-    #     """Return the current track queue."""
-    #     return [choice.value for choice in self._track_queue]
+    @public
+    def current_track(self):
+        """Return the currently playing track."""
+        with gevent.Timeout(self._timeout):
+            if self._current_track:
+                return self._current_track.encode()
 
-    # @handler.method
-    # def playlist_queue(self, *args):
-    #     """Return the current playlist queue."""
-    #     return [choice.value for choice in self._playlist_queue]
+    @public
+    def history(self):
+        """Return the track history."""
+        with gevent.Timeout(self._timeout):
+            return [track.encode() for track in self._history]
+
+    @handler.method
+    def track_queue(self):
+        """Return the current track queue."""
+        with gevent.Timeout(self._timeout):
+            return [choice.value().encode() for choice in self._track_queue]
+
+    @handler.method
+    def playlist_queue(self):
+        """Return the current playlist queue."""
+        with gevent.Timeout(self._timeout):
+            return [choice.value().encode() for choice in self._playlist_queue]
+
+    @handler.method
+    def lineup(self):
+        """Return the next tracks to play."""
+        with gevent.Timeout(self._timeout):
+            return track_queue() + playlist_queue()
+
+    def _sync_player(self, *args):
+        """Load and play the current track, and prefetch the next."""
+        lineup = self.lineup()
+
+        try:
+            track = lineup[0]
+        except IndexError:
+            self._session.player.unload()
+            self._current_track = None
+        else:
+            if track is not self._current_track:
+                self._session.player.load(track.data)
+                self._current_track = track
+                self.unpause()
+
+        try:
+            next_track = lineup[1]
+        except IndexError:
+            pass
+        else:
+            self._session.player.prefetch(next_track.data)
+
+    def _drop_empty_playlists(self):
+        queue = self._playlist_queue
+        while queue and not queue[0].track_set():
+            queue.pop(0)
+
+    @handler.method
+    def next_track(self, *args):
+        """Load and play the next track."""
+        with gevent.Timeout(self._timeout):
+            try:
+                self._track_queue.pop(0)
+            except IndexError:
+                self._drop_empty_playlists()
+                try:
+                    self._playlist_queue[0].pop(0)
+                except IndexError:
+                    pass
+                self._drop_empty_playlists()
+
+            if self._current_track:
+                self._history.insert(0, self._current_track)
+            self._sync_player()
+            return self._current_track.encode()
+
+    @handler.method
+    def prev_track(self, *args):
+        """Load and play the previous track."""
+        with gevent.Timeout(self._timeout):
+            if self._history:
+                track = self._history.pop(0)
+                self._track_queue.insert(0, Choice([track]))
+                self._sync_player()
+            return self._current_track.encode()
+
+    @handler.method
+    def next_playlist(self, *args):
+        """Load an play the next playlist."""
+        with gevent.Timeout(self._timeout):
+            try:
+                self._playlist_queue.pop(0)
+                self._sync_player()
+                return self._playlist_queue[0].encode()
+            except IndexError:
+                pass
+
+    @handler.method
+    def restart_track(self, *args):
+        """Restart the track."""
+        with gevent.Timeout(self._timeout):
+            self._session.player.seek(0)
+            self.unpause()
+            return self._current_track.encode()
 
     # @handler.method
     # def last_result(self, *args):
     #     """Return the last choice made."""
     #     if self._last_choice:
     #         return self._last_choice.value
-
-    # @handler.method
-    # def lineup(self, *args):
-    #     """Return the next tracks to play."""
-    #     return [choice.value for choice in self._track_queue] + \
-    #         [track for choice in self._playlist_queue
-    #                for track in choice.value.track_set]
-
-    # def _sync_player(self, *args):
-    #     """Load and play the current track, and prefetch the next."""
-    #     lineup = self.lineup()
-
-    #     try:
-    #         track = lineup[0]
-    #     except IndexError:
-    #         self._session.player.unload()
-    #         self._current_track = None
-    #     else:
-    #         if track is not self._current_track:
-    #             self._session.player.load(track.data)
-    #             self._current_track = track
-    #             self.unpause()
-
-    #     try:
-    #         next_track = lineup[1]
-    #     except IndexError:
-    #         pass
-    #     else:
-    #         self._session.player.prefetch(next_track.data)
-
-    # @handler.method
-    # def unpause(self, *args):
-    #     """Resume spotify playback."""
-    #     if self._current_track:
-    #         self._playing = True
-    #         self._session.player.play()
-    #     return self._playing
-
-    # @handler.method
-    # def pause(self, *args):
-    #     """Pause spotify playback."""
-    #     self._playing = False
-    #     self._session.player.pause()
-    #     return True
-
-    # def _drop_empty_playlists(self):
-    #     queue = self._playlist_queue
-    #     while queue and not queue[0].track_set:
-    #         queue.pop(0)
-
-    # @handler.method
-    # def next_track(self, *args):
-    #     """Load and play the next track."""
-    #     try:
-    #         self._track_queue.pop(0)
-    #     except IndexError:
-    #         self._drop_empty_playlists()
-    #         try:
-    #             self._playlist_queue[0].pop(0)
-    #         except IndexError:
-    #             pass
-    #         self._drop_empty_playlists()
-
-    #     if self._current_track:
-    #         self._history.insert(0, self._current_track)
-    #     self._sync_player()
-    #     return self._current_track
-
-    # @handler.method
-    # def prev_track(self, *args):
-    #     """Load and play the previous track."""
-    #     if self._history:
-    #         track = self._history.pop(0)
-    #         self._track_queue.insert(0, Choice([track]))
-    #         self._sync_player()
-    #     return self._current_track
-
-    # @handler.method
-    # def next_playlist(self, *args):
-    #     """Load an play the next playlist."""
-    #     try:
-    #         self._playlist_queue.pop(0)
-    #         return self._playlist_queue[0]
-    #     except IndexError:
-    #         pass
-
-    # @handler.method
-    # def restart_track(self, *args):
-    #     """Restart the track."""
-    #     self._session.player.seek(0)
-    #     self.unpause()
-    #     return self._current_track
 
     # @handler.method
     # @defer.inlineCallbacks

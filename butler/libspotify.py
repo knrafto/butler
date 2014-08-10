@@ -223,7 +223,7 @@ class Spotify(object):
         self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
         self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
         self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
-        # self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
+        self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
         self._timeout = int(config.get('timeout', None))
         self._stride = int(config.get('stride', 20))

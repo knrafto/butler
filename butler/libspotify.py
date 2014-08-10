@@ -235,6 +235,7 @@ class Spotify(object):
         self._playing = False
         self._current_track = None
         self._history = []
+        self._track_changed = gevent.event.Event()
 
         # Queues of searchs
         self._playlist_queue = []
@@ -326,6 +327,12 @@ class Spotify(object):
         return as_dict(self._current_track)
 
     @public
+    def on_track_changed(self):
+        """Block until the track changes."""
+        self._track_changed.wait()
+        return self.current_track()
+
+    @public
     def history(self):
         """Return the track history."""
         return map(as_dict, self._history)
@@ -360,8 +367,11 @@ class Spotify(object):
         else:
             if track is not self._current_track:
                 self._session.player.load(track.data)
-                self._current_track = track
                 self.unpause()
+
+            self._current_track = track
+            self._track_changed.set()
+            self._track_changed = gevent.event.Event()
 
         try:
             next_track = lineup[1]

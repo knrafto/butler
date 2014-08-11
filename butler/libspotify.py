@@ -241,6 +241,9 @@ class Spotify(object):
         # Search
         self._last_search = None
 
+        # Relogin
+        self._session.relogin()
+
     def _process_events(self):
         while True:
             try:
@@ -262,7 +265,7 @@ class Spotify(object):
             raise Exception('You must be logged in to do that')
 
     @public
-    def login(self, username=None, password=None):
+    def login(self, username, password):
         """Log in to Spotify."""
         result = gevent.event.AsyncResult()
 
@@ -276,16 +279,9 @@ class Spotify(object):
             return False
 
         self._session.on(spotify.SessionEvent.LOGGED_IN, logged_in)
-
-        if username is None:
-            self._session.relogin()
-        elif password:
-            self._session.login(username, password, remember_me=True);
-        else:
-            raise ValueError('Password required')
+        self._session.login(username, password, remember_me=True);
 
         result.get(self._timeout)
-        # TODO: store blob
 
     @public
     def connection_state(self, *args):

@@ -10,13 +10,25 @@ import Queue
 import spotify
 from tinyrpc.dispatch import public
 
-def as_dict(value):
-    try:
-        f = value.as_dict
-    except AttributeError:
-        return value
-    else:
-        return f()
+def uri(value):
+    return getattr(value, 'uri', None)
+
+def async_map(func, iterable):
+    def set_result(value, result):
+        try:
+            r = func(value)
+        except Exception, e:
+            result.set_exception(e)
+        else:
+            result.set(r)
+
+    results = []
+    for item in iterable:
+        result = gevent.event.AsyncResult()
+        results.append(result)
+        gevent.spawn(set_result, item, result)
+    return [result.get() for result in results]
+
 
 class Search(object):
     """A list of items from a Spotify search."""
@@ -50,8 +62,9 @@ class Search(object):
         if self._index > 0:
             self._index -= 1
 
-    def as_dict(self):
-        return as_dict(self.value)
+    @property
+    def uri(self):
+        return uri(self.value)
 
     @staticmethod
     def _fetch_results(session, query='', search_type='', offset=0, stride=None):
@@ -77,15 +90,11 @@ class Search(object):
 
         session.search(query, loaded, **kwds)
 
-        ctors = {
-            'track': Track.load,
-            'playlist': Playlist.load
-        }
-
         search = result.get()
-        ctor = ctors[search_type]
-        raw_items = getattr(search, search_type + 's')
-        return gevent.pool.Pool().map(ctor, raw_items)
+        if search_type == 'track':
+            return [TrackData(track) for track in search.tracks]
+        else:
+            return async_map(Playlist.load, search.playlists)
 
     @classmethod
     def load(cls, session, **kwds):
@@ -96,7 +105,7 @@ class Single(object):
     def __init__(self, value):
         self.value = value
 
-class Track(object):
+class TrackData(object):
     def __init__(self, track):
         self.track = track
 
@@ -104,45 +113,15 @@ class Track(object):
     def data(self):
         return self.track
 
-    def as_dict(self):
-        return {
-            'type': 'Track',
-            'name': self.track.name,
-            'uri': self.track.link.uri
-        }
-
-    @classmethod
-    def load(cls, track):
-        session = track._session
-        result = gevent.event.AsyncResult()
-
-        def loaded():
-            if not track.is_loaded:
-                return False
-
-            try:
-                spotify.Error.maybe_raise(track.error)
-            except spotify.LibError as e:
-                result.set_exception(e)
-            else:
-                result.set(None)
-            return True
-
-        def check_loaded(session):
-            if loaded():
-                return False
-
-        if not loaded():
-            session.on(spotify.SessionEvent.METADATA_UPDATED, check_loaded)
-
-        result.get()
-        return cls(track)
+    @property
+    def uri(self):
+        return self.track.link.uri
 
 class Playlist(object):
-    def __init__(self, playlist, tracks):
+    def __init__(self, playlist):
         self.playlist = playlist
 
-        self.track_set = tracks
+        self.track_set = playlist.tracks
         random.shuffle(self.track_set)
 
     def next(self):
@@ -151,25 +130,22 @@ class Playlist(object):
         except IndexError:
             pass
 
-    def as_dict(self):
-        return {
-            'type': 'Playlist',
-            'name': self.playlist.name,
-            'uri': self.playlist.link.uri
-        }
+    @property
+    def uri(self):
+        return self.playlist.link.uri
 
     @classmethod
     def load(cls, playlist):
         if isinstance(playlist, spotify.SearchPlaylist):
             playlist = playlist.playlist
 
-        result = gevent.event.AsyncResult()
+        event = gevent.event.Event()
 
         def loaded():
             if not playlist.is_loaded:
                 return False
 
-            result.set()
+            event.set()
             return True
 
         def check_loaded(playlist):
@@ -180,9 +156,8 @@ class Playlist(object):
             playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
         # TODO: tracks added, removed
 
-        result.get()
-        tracks = gevent.pool.Pool().map(Track.load, playlist.tracks)
-        return cls(playlist, tracks)
+        event.wait()
+        return cls(playlist)
 
 class Spotify(object):
     """Spotify handler.
@@ -318,7 +293,7 @@ class Spotify(object):
     @public
     def current_track(self):
         """Return the currently playing track."""
-        return as_dict(self._current_track)
+        return uri(self._current_track)
 
     @public
     def on_track_changed(self):
@@ -329,22 +304,22 @@ class Spotify(object):
     @public
     def history(self):
         """Return the track history."""
-        return map(as_dict, self._history)
+        return map(uri, self._history)
 
     @public
     def track_queue(self):
         """Return the current track queue."""
-        return map(as_dict, self._track_queue)
+        return map(uri, self._track_queue)
 
     @public
     def playlist_queue(self):
         """Return the current playlist queue."""
-        return map(as_dict, self._playlist_queue)
+        return map(uri, self._playlist_queue)
 
     @public
     def lineup(self):
         return self.track_queue() + \
-            [as_dict(track) for search in self._playlist_queue
+            [uri(track) for search in self._playlist_queue
                 for track in search.value.track_set]
 
     def _sync_player(self, *args):
@@ -358,7 +333,7 @@ class Spotify(object):
         except IndexError:
             track = None
 
-        if track is not self._current_track:
+        if track and track is not self._current_track:
             self._session.player.load(track.data)
             self._playing = True
             self._session.player.play()
@@ -416,7 +391,7 @@ class Spotify(object):
         try:
             self._playlist_queue.pop(0)
             self._sync_player()
-            return as_dict(self._playlist_queue[0])
+            return uri(self._playlist_queue[0])
         except IndexError:
             pass
 
@@ -431,7 +406,7 @@ class Spotify(object):
     @public
     def last_result(self, *args):
         """Return the last search made."""
-        return as_dict(self._last_search)
+        return uri(self._last_search)
 
     @public
     def next_result(self, *args):

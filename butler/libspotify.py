@@ -367,7 +367,8 @@ class Spotify(object):
         else:
             if track is not self._current_track:
                 self._session.player.load(track.data)
-                self.unpause()
+                self._playing = True
+                self._session.player.play()
 
             self._current_track = track
             self._track_changed.set()

@@ -285,6 +285,7 @@ class Spotify(object):
             raise ValueError('Password required')
 
         result.get(self._timeout)
+        # TODO: store blob
 
     @public
     def connection_state(self, *args):
@@ -359,24 +360,24 @@ class Spotify(object):
         try:
             track = lineup[0]
         except IndexError:
-            self._session.player.unload()
-            self._current_track = None
-        else:
-            if track is not self._current_track:
-                self._session.player.load(track.data)
-                self._playing = True
-                self._session.player.play()
+            track = None
 
-            self._current_track = track
-            self._track_changed.set()
-            self._track_changed = gevent.event.Event()
+        if track is not self._current_track:
+            self._session.player.load(track.data)
+            self._playing = True
+            self._session.player.play()
+        elif not track:
+            self._session.player.unload()
+
+        self._current_track = track
+        self._track_changed.set()
+        self._track_changed = gevent.event.Event()
 
         try:
             next_track = lineup[1]
+            self._session.player.prefetch(next_track.data)
         except IndexError:
             pass
-        else:
-            self._session.player.prefetch(next_track.data)
 
     def _drop_empty_playlists(self):
         queue = self._playlist_queue

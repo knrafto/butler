@@ -118,10 +118,10 @@ class TrackData(object):
         return self.track.link.uri
 
 class Playlist(object):
-    def __init__(self, playlist):
+    def __init__(self, playlist, tracks):
         self.playlist = playlist
 
-        self.track_set = playlist.tracks
+        self.track_set = tracks
         random.shuffle(self.track_set)
 
     def next(self):
@@ -138,26 +138,14 @@ class Playlist(object):
     def load(cls, playlist):
         if isinstance(playlist, spotify.SearchPlaylist):
             playlist = playlist.playlist
+        result = gevent.event.AsyncResult()
 
-        event = gevent.event.Event()
+        def tracks_added(playlist, tracks, index):
+            result.set(tracks)
 
-        def loaded():
-            if not playlist.is_loaded:
-                return False
-
-            event.set()
-            return True
-
-        def check_loaded(playlist):
-            if loaded():
-                return False
-
-        if not loaded():
-            playlist.on(spotify.PlaylistEvent.PLAYLIST_STATE_CHANGED, check_loaded)
-        # TODO: tracks added, removed
-
-        event.wait()
-        return cls(playlist)
+        playlist.on(spotify.PlaylistEvent.TRACKS_ADDED, tracks_added)
+        tracks = [TrackData(track) for track in result.get()]
+        return cls(playlist, tracks)
 
 class Spotify(object):
     """Spotify handler.

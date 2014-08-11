@@ -231,7 +231,7 @@ class Spotify(object):
         self._playing = False
         self._current_track = None
         self._history = []
-        self._track_changed = gevent.event.Event()
+        self._player_state_changed = gevent.event.Event()
 
         # Queues of searchs
         self._playlist_queue = []
@@ -293,80 +293,49 @@ class Spotify(object):
         ]
         return states[self._session.connection.state]
 
-    @public
-    def paused(self, *args):
-        """Returns whether playback is running."""
-        return not self._playing
-
-    @public
-    def unpause(self, *args):
-        """Resume spotify playback."""
-        self._guard()
-        if self._current_track:
-            self._playing = True
-            self._session.player.play()
-        return self._playing
-
-    @public
-    def pause(self, *args):
-        """Pause spotify playback."""
-        self._playing = False
-        self._session.player.pause()
-        return True
-
-    @public
-    def current_track(self, *args):
-        """Return the currently playing track."""
-        return as_dict(self._current_track)
-
-    @public
-    def on_track_changed(self, *args):
-        """Block until the track changes."""
-        self._track_changed.wait()
-        return self.current_track()
-
-    @public
-    def history(self, *args):
-        """Return the track history."""
-        return map(as_dict, self._history)
-
-    @public
-    def track_queue(self, *args):
-        """Return the current track queue."""
-        return map(as_dict, self._track_queue)
-
-    @public
-    def playlist_queue(self, *args):
-        """Return the current playlist queue."""
-        return map(as_dict, self._playlist_queue)
-
-    @public
-    def lineup(self, *args):
-        return self.track_queue() + \
-            [as_dict(track) for search in self._playlist_queue
+    def _lineup(self, *args):
+        return [search.value for search in self._track_queue] + \
+            [track for search in self._playlist_queue
                 for track in search.value.track_set]
+
+    @public
+    def player_state(self, *args):
+        """Return the current player state."""
+        return {
+            'paused':         not self._playing,
+            'current_track':  as_dict(self._current_track),
+            'history':        map(as_dict, self._history),
+            'track_queue':    map(as_dict, self._track_queue),
+            'playlist_queue': map(as_dict, self._playlist_queue),
+            'lineup':         map(as_dict, self._lineup())
+        }
+
+    @public
+    def on_player_state_changed(self, *args):
+        """Block until the track changes."""
+        self._player_state_changed.wait()
+        return self.player_state()
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
-        lineup = [search.value for search in self._track_queue] + \
-            [track for search in self._playlist_queue
-                for track in search.value.track_set]
+        lineup = self._lineup()
 
         try:
             track = lineup[0]
         except IndexError:
             track = None
 
-        if track is not self._current_track:
+        if track and track is not self._current_track:
             self._session.player.load(track.data)
             self._playing = True
             self._session.player.play()
         elif not track:
+            self._playing = False
             self._session.player.unload()
 
         self._current_track = track
-        self._track_changed.set()
-        self._track_changed = gevent.event.Event()
+        self._player_state_changed.set()
+        self._player_state_changed = gevent.event.Event()
 
         try:
             next_track = lineup[1]
@@ -396,7 +365,7 @@ class Spotify(object):
         if self._current_track:
             self._history.insert(0, self._current_track)
         self._sync_player()
-        return self.current_track()
+        return self.player_state()
 
     @public
     def prev_track(self, *args):
@@ -406,7 +375,7 @@ class Spotify(object):
             track = self._history.pop(0)
             self._track_queue.insert(0, Single(track))
             self._sync_player()
-        return self.current_track()
+        return self.player_state()
 
     @public
     def next_playlist(self, *args):
@@ -420,11 +389,19 @@ class Spotify(object):
             pass
 
     @public
-    def restart_track(self, *args):
-        """Restart the track."""
-        self._session.player.seek(0)
-        self.unpause()
-        return self.current_track()
+    def unpause(self, *args):
+        """Resume spotify playback."""
+        if self._current_track:
+            self._playing = True
+            self._session.player.play()
+        return self.player_state()
+
+    @public
+    def pause(self, *args):
+        """Pause spotify playback."""
+        self._playing = False
+        self._session.player.pause()
+        return self.player_state()
 
     @public
     def seek(self, ms):

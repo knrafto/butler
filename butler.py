@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-def serve():
-    import os
-    import json
-
+def serve(config):
     import gevent
     import gevent.wsgi
     import gevent.queue
@@ -15,10 +12,7 @@ def serve():
 
     from butler import libspotify
 
-    config_file = open(
-        os.path.expanduser(os.path.join('~', '.butler', 'butler.cfg')))
-    config = json.load(config_file)
-    config_file.close()
+    server_config = config['server']
 
     handlers = {
         'spotify': libspotify.Spotify
@@ -32,8 +26,8 @@ def serve():
 
     transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 
-    # start wsgi server as a background greenlet
-    wsgi_server = gevent.wsgi.WSGIServer(('127.0.0.1', 6969), transport.handle)
+    wsgi_server = gevent.wsgi.WSGIServer(
+        server_config['address'], transport.handle)
     gevent.spawn(wsgi_server.serve_forever)
 
     rpc_server = RPCServerGreenlets(
@@ -47,15 +41,17 @@ def serve():
     except KeyboardInterrupt:
         pass
 
-def ask(method, *args):
+def ask(config, method, *args):
     from tinyrpc.exc import RPCError
     from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
     from tinyrpc.transports.http import HttpPostClientTransport
     from tinyrpc import RPCClient
 
+    server_config = config['server']
+
     rpc_client = RPCClient(
         JSONRPCProtocol(),
-        HttpPostClientTransport('http://127.0.0.1:6969/')
+        HttpPostClientTransport('http://' + server_config['address'])
     )
 
     try:
@@ -67,8 +63,17 @@ def ask(method, *args):
         print(result)
 
 if __name__ == '__main__':
+    import json
+    import os
     import sys
+
+    # TODO: nicer errors
+    config_file = open(
+        os.path.expanduser(os.path.join('~', '.butler', 'butler.cfg')))
+    config = json.load(config_file)
+    config_file.close()
+
     if len(sys.argv) > 1:
-        ask(sys.argv[1], *sys.argv[2:])
+        ask(config, sys.argv[1], *sys.argv[2:])
     else:
-        serve()
+        serve(config)

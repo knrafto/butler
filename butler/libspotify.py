@@ -188,9 +188,9 @@ class Spotify(object):
     """Spotify handler.
 
     Settings:
-        cache_dir
-        data_dir
-        key_file
+        cachedir
+        datadir
+        keyfile
         timeout
         stride
     """
@@ -198,15 +198,12 @@ class Spotify(object):
         name = 'spotify'
 
         spotify_config = spotify.Config()
-        if 'cache_dir' in config:
-            spotify_config.cache_location = \
-                os.path.expanduser(config['cache_dir'])
-        if 'data_dir' in config:
-            spotify_config.settings_location = \
-                os.path.expanduser(config['data_dir'])
-        if 'key_file' in config:
-            spotify_config.load_application_key_file(
-                os.path.expanduser(config['key_file']))
+        spotify_config.cache_location = \
+            os.path.expanduser(config['cachedir'])
+        spotify_config.settings_location = \
+            os.path.expanduser(config['datadir'])
+        spotify_config.load_application_key_file(
+            os.path.expanduser(config['keyfile']))
 
         if not os.path.exists(spotify_config.settings_location):
             os.makedirs(spotify_config.settings_location)
@@ -225,8 +222,8 @@ class Spotify(object):
         self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
         self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
-        self._timeout = int(config.get('timeout', None))
-        self._stride = int(config.get('stride', 20))
+        self._timeout = config['timeout']
+        self._stride = config['stride']
 
         self._timeout_context = \
             gevent.Timeout(self._timeout, Exception('Operation timed out'))

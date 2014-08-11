@@ -144,7 +144,7 @@ class Playlist(object):
             result.set(tracks)
 
         playlist.on(spotify.PlaylistEvent.TRACKS_ADDED, tracks_added)
-     play_track   tracks = [TrackData(track) for track in result.get()]
+        tracks = [TrackData(track) for track in result.get()]
         return cls(playlist, tracks)
 
 class Spotify(object):
@@ -396,6 +396,60 @@ class Spotify(object):
         self._session.player.seek(ms)
         return ms
 
+    def _hold(self, search, queue_type, hold_type):
+        def play(l):
+            l[0:1] = [search]
+
+        def bump(l):
+            l.insert(1, search)
+
+        def queue(l):
+            l.append(search)
+
+        hold_types = {
+            'play': play,
+            'bump': bump,
+            'queue': queue
+        }
+
+        try:
+            hold = hold_types[hold_type]
+        except KeyError:
+            raise Exception('Unknown hold type')
+
+        queue_types = {
+            'track': self._track_queue,
+            'playlist': self._playlist_queue
+        }
+
+        try:
+            queue_list = queue_types[queue_type]
+        except KeyError:
+            raise Exception('Unknown search type')
+
+        hold(queue_list)
+        self._sync_player()
+
+    @public
+    def add(self, uri, queue_type, hold_type):
+        with self._timeout_context:
+            if queue_type == 'track':
+                item = Track.load(self._session.get_track(uri))
+            elif queue_type == 'playlist':
+                item = Playlist.load(self._session.get_playlist(uri))
+        self._hold(Single(item), queue_type, hold_type)
+        return uri
+
+    @public
+    def search(self, query, queue_type, hold_type):
+        self._guard()
+        with self._timeout_context:
+            search = Search.load(self._session,
+                query=query, search_type=queue_type, stride=self._stride)
+        self._hold(search, queue_type, hold_type)
+        self._last_search = search
+        return self.last_result()
+
     @public
     def last_result(self, *args):
         """Return the last search made."""
@@ -419,65 +473,3 @@ class Spotify(object):
             self._last_search.prev()
             self._sync_player()
         return self.last_result()
-
-    def _search(self, query, hold_type, search_type):
-        self._guard()
-        with self._timeout_context:
-            search = Search.load(self._session,
-                query=query, search_type=search_type, stride=self._stride)
-        self._last_search = search
-
-        def play(l):
-            l[0:1] = [search]
-
-        def bump(l):
-            l.insert(1, search)
-
-        def queue(l):
-            l.append(search)
-
-        hold_types = {
-            'play': play,
-            'bump': bump,
-            'queue': queue
-        }
-
-        search_types = {
-            'track': self._track_queue,
-            'playlist': self._playlist_queue
-        }
-
-        hold_types[hold_type](search_types[search_type])
-
-        self._sync_player()
-        return self.last_result()
-
-    @public
-    def play_track(self, query):
-        """Play a track now."""
-        return self._search(query, 'play', 'track')
-
-    @public
-    def bump_track(self, query):
-        """Play a track next."""
-        return self._search(query, 'bump', 'track')
-
-    @public
-    def queue_track(self, query):
-        """Place a track at the end of the queue."""
-        return self._search(query, 'queue', 'track')
-
-    @public
-    def play_playlist(self, query):
-        """Play a shuffled playlist now."""
-        return self._search(query, 'play', 'playlist')
-
-    @public
-    def bump_playlist(self, query):
-        """Play a shuffled playlist next."""
-        return self._search(query, 'bump', 'playlist')
-
-    @public
-    def queue_playlist(self, query):
-        """Place a shuffled playlist at the end of the queue."""
-        return self._search(query, 'queue', 'playlist')

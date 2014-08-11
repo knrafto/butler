@@ -144,7 +144,7 @@ class Playlist(object):
             result.set(tracks)
 
         playlist.on(spotify.PlaylistEvent.TRACKS_ADDED, tracks_added)
-        tracks = [TrackData(track) for track in result.get()]
+     play_track   tracks = [TrackData(track) for track in result.get()]
         return cls(playlist, tracks)
 
 class Spotify(object):
@@ -279,38 +279,38 @@ class Spotify(object):
         return True
 
     @public
-    def current_track(self):
+    def current_track(self, *args):
         """Return the currently playing track."""
         return uri(self._current_track)
 
     @public
-    def on_track_changed(self):
+    def on_track_changed(self, *args):
         """Block until the track changes."""
         self._track_changed.wait()
         return self.current_track()
 
     @public
-    def history(self):
+    def history(self, *args):
         """Return the track history."""
         return map(uri, self._history)
 
     @public
-    def track_queue(self):
+    def track_queue(self, *args):
         """Return the current track queue."""
         return map(uri, self._track_queue)
 
     @public
-    def playlist_queue(self):
+    def playlist_queue(self, *args):
         """Return the current playlist queue."""
         return map(uri, self._playlist_queue)
 
     @public
-    def lineup(self):
+    def lineup(self, *args):
         return self.track_queue() + \
             [uri(track) for search in self._playlist_queue
                 for track in search.value.track_set]
 
-    def _sync_player(self, *args):
+    def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
         lineup = [search.value for search in self._track_queue] + \
             [track for search in self._playlist_queue
@@ -386,10 +386,15 @@ class Spotify(object):
     @public
     def restart_track(self, *args):
         """Restart the track."""
-        self._guard()
         self._session.player.seek(0)
         self.unpause()
         return self.current_track()
+
+    @public
+    def seek(self, ms):
+        """Seek to a position."""
+        self._session.player.seek(ms)
+        return ms
 
     @public
     def last_result(self, *args):

@@ -44,7 +44,7 @@ class Search(object):
             items = self._fetch_results(self._session, **self._kwds)
             if not items:
                 raise Exception('No more results')
-            self._items.append(items)
+            self._items.extend(items)
 
     def prev(self):
         if self._index > 0:

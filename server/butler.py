@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     # TODO: nicer errors
     config_file = open(
-        os.path.expanduser(os.path.join('~', '.butler', 'butler.cfg')))
+        os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg')))
     config = json.load(config_file)
     config_file.close()
 

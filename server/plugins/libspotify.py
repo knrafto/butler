@@ -13,6 +13,35 @@ from werkzeug.exceptions import Unauthorized
 
 from endpoint import route
 
+class TrackSet(object):
+    """A set of tracks to be played."""
+    target = None
+    tracks = []
+
+    def __init__(self, target):
+        """Create a set from a Spotify object."""
+        self.target = target
+        if isinstance(target, spotify.Track):
+            self.tracks = [target]
+        else:
+            self.tracks = target.tracks
+
+    @property
+    def current(self):
+        """Return the current track. Raises IndexError if all tracks
+        have been played.
+        """
+        return self.tracks[0]
+
+    def next(self):
+        """Return the next track. Raises StopIteration if all tracks
+        have been played.
+        """
+        try:
+            return self.tracks.pop(0)
+        except IndexError:
+            raise StopIteration
+
 class PropertyEncoder(json.JSONEncoder):
     """An encoder that uses a list of properties to serialize an
     object. Takes a dictionary of type: properties.
@@ -49,6 +78,7 @@ class PropertyEncoder(json.JSONEncoder):
         }
 
 encoder = PropertyEncoder({
+    TrackSet: ('target', 'tracks')
 })
 
 def encode(obj):
@@ -95,7 +125,7 @@ class Spotify(object):
         self.playing = False
         self.current_track = None
         self.history = []
-        self.queue = []
+        self.track_sets = []
 
         self.player_state_changed = gevent.event.Event()
 

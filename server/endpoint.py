@@ -105,6 +105,9 @@ class Dispatcher(object):
     dependency injection. The delegate URLs are mounting in a
     submount identified by the delegate name.
 
+    All delegate endpoints should return a JSON-encodable Python
+    object.
+
     >>> from werkzeug.test import Client
     >>> class Spam(object):
     ...    @route('/<int:id>/')

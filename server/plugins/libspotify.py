@@ -18,72 +18,59 @@ class Spotify(object):
     plugin_name = 'spotify'
 
     def __init__(self, cachedir=None, datadir=None, keyfile=None, timeout=30, **kwds):
-        pass
-    # def __init__(self, config):
-    #     name = 'spotify'
+        config = spotify.Config()
+        if cachedir:
+            config.cache_location = os.path.expanduser(cachedir)
+        if datadir:
+            config.settings_location = os.path.expanduser(datadir)
+        if keyfile:
+            config.load_application_key_file(os.path.expanduser(keyfile))
 
-    #     spotify_config = spotify.Config()
-    #     spotify_config.cache_location = \
-    #         os.path.expanduser(config['cachedir'])
-    #     spotify_config.settings_location = \
-    #         os.path.expanduser(config['datadir'])
-    #     spotify_config.load_application_key_file(
-    #         os.path.expanduser(config['keyfile']))
+        if not os.path.exists(config.settings_location):
+            os.makedirs(config.settings_location)
 
-    #     if not os.path.exists(spotify_config.settings_location):
-    #         os.makedirs(spotify_config.settings_location)
+        self.session = spotify.Session(config)
 
-    #     self._session = spotify.Session(config=spotify_config)
+        spotify.AlsaSink(self.session)
 
-    #     spotify.AlsaSink(self._session)
+        self._pending = Queue.Queue()
+        gevent.spawn(self._process_events)
+        self._notify()
 
-    #     self._pending = Queue.Queue()
-    #     gevent.spawn(self._process_events)
-    #     self._notify()
+        self.session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, self._notify)
+        # self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
+        # self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
+        # self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
+        # self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
 
-    #     self._session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, self._notify)
-    #     self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
-    #     self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
-    #     self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
-    #     self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
+        self.timeout = timeout
 
-    #     self._timeout = config['timeout']
-    #     self._stride = config['stride']
+        # Playback
+        self.playing = False
+        self.current_track = None
+        self.history = []
+        self.queue = []
 
-    #     self._timeout_context = \
-    #         gevent.Timeout(self._timeout, Exception('Operation timed out'))
+        self.player_state_changed = gevent.event.Event()
 
-    #     # Playback
-    #     self._playing = False
-    #     self._current_track = None
-    #     self._history = []
-    #     self._player_state_changed = gevent.event.Event()
+        # Relogin
+        self.session.relogin()
 
-    #     # Queues of searchs
-    #     self._playlist_queue = []
-    #     self._track_queue = []
+    def _process_events(self):
+        while True:
+            try:
+                self._pending.get(False)
+            except Queue.Empty:
+                gevent.sleep(0.001) # spin
+            else:
+                try:
+                    timeout = self.session.process_events() / 1000.0
+                except Exception as e:
+                    print(e, file=sys.stderr)
+                gevent.spawn_later(timeout, self._notify)
 
-    #     # Search
-    #     self._last_search = None
-
-    #     # Relogin
-    #     self._session.relogin()
-
-    # def _process_events(self):
-    #     while True:
-    #         try:
-    #             self._pending.get(False)
-    #         except Queue.Empty:
-    #             gevent.sleep(0.001) # spin
-    #         else:
-    #             try:
-    #                 timeout = self._session.process_events() / 1000.0
-    #             except Exception as e:
-    #                 print(e, file=sys.stderr)
-    #             gevent.spawn_later(timeout, self._notify)
-
-    # def _notify(self, *args):
-    #     self._pending.put(1)
+    def _notify(self, *args):
+        self._pending.put(1)
 
     # def _guard(self):
     #     if self.connection_state() not in ('Logged in', 'Offline'):

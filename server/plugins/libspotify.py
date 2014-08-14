@@ -9,6 +9,9 @@ import gevent
 import gevent.event
 import Queue
 import spotify
+from werkzeug.exceptions import Unauthorized
+
+from endpoint import route
 
 class PropertyEncoder(json.JSONEncoder):
     """An encoder that uses a list of properties to serialize an
@@ -115,9 +118,12 @@ class Spotify(object):
     def _notify(self, *args):
         self._pending.put(1)
 
-    # def _guard(self):
-    #     if self.connection_state() not in ('Logged in', 'Offline'):
-    #         raise Exception('You must be logged in to do that')
+    def guard(self):
+        if self.session.connection.state not in (
+            spotify.ConnectionState.LOGGED_IN,
+            spotify.ConnectionState.OFFLINE
+        ):
+            raise Unauthorized()
 
     # @public
     # def login(self, username, password):
@@ -138,16 +144,18 @@ class Spotify(object):
 
     #     result.get(self._timeout)
 
-    # @public
-    # def connection_state(self, *args):
-    #     states = [
-    #         'Logged out',
-    #         'Logged in',
-    #         'Disconnected',
-    #         'Undefined',
-    #         'Offline'
-    #     ]
-    #     return states[self._session.connection.state]
+    @route('/connection/')
+    def connection(self):
+        states = [
+            'Logged out',
+            'Logged in',
+            'Disconnected',
+            'Undefined',
+            'Offline'
+        ]
+        return encode({
+            'result': states[self.session.connection.state]
+        })
 
     # def _lineup(self, *args):
     #     return [search.value for search in self._track_queue] + \

@@ -41,7 +41,7 @@ class Search(object):
         self._index += 1
         while self._index >= len(self._items):
             self._kwds['offset'] = len(self._items)
-            items = self._fetch_results(self._session, **self._kwds)
+            items = self.search(self._session, **self._kwds)
             if not items:
                 raise Exception('No more results')
             self._items.extend(items)
@@ -54,7 +54,7 @@ class Search(object):
         return as_dict(self.value)
 
     @staticmethod
-    def _fetch_results(session, query='', search_type='', offset=0, stride=None):
+    def search(session, query='', search_type='', offset=0, stride=None):
         result = gevent.event.AsyncResult()
 
         kwds = {}
@@ -89,7 +89,7 @@ class Search(object):
 
     @classmethod
     def load(cls, session, **kwds):
-        items = cls._fetch_results(session, **kwds)
+        items = cls.search(session, **kwds)
         return cls(session, items, **kwds)
 
 class Single(object):
@@ -444,7 +444,7 @@ class Spotify(object):
         self._sync_player()
 
     @public
-    def add(self, uri, queue_type, hold_type):
+    def add_uri(self, uri, queue_type, hold_type):
         with self._timeout_context:
             if queue_type == 'track':
                 item = Track.load(self._session.get_track(uri))
@@ -454,11 +454,11 @@ class Spotify(object):
         return uri
 
     @public
-    def search(self, query, queue_type, hold_type):
+    def add_query(self, query, queue_type, hold_type):
         self._guard()
         with self._timeout_context:
-            search = Search.load(self._session,
-                query=query, search_type=queue_type, stride=self._stride)
+            search = Search.load(self._session, query,
+                queue_type, self._stride)
         self._hold(search, queue_type, hold_type)
         self._last_search = search
         return self.last_result()
@@ -486,3 +486,10 @@ class Spotify(object):
             self._last_search.prev()
             self._sync_player()
         return self.last_result()
+
+    @public
+    def search(self, query, search_type, offset=0, stride=None):
+        self._guard()
+        results = Search.search(self._session, query,
+            search_type, offset, stride)
+        return map(as_dict, results)

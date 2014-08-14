@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import json
 import os
 import random
 import sys
@@ -8,6 +9,48 @@ import gevent
 import gevent.event
 import Queue
 import spotify
+
+class PropertyEncoder(json.JSONEncoder):
+    """An encoder that uses a list of properties to serialize an
+    object. Takes a dictionary of type: properties.
+
+    >>> class Monty(object):
+    ...     def __init__(self, ni):
+    ...         self.ni = ni
+    ...
+    >>> class Spam(object):
+    ...     def __init__(self, eggs):
+    ...         self.eggs = eggs
+    ...     @property
+    ...     def knights(self): return Monty('ni')
+    ...
+    >>> encoder = PropertyEncoder({
+    ...     Monty: ('ni',),
+    ...     Spam: ('eggs', 'knights')
+    ... })
+    ...
+    >>> encoder.encode(Spam('eggs'))
+    '{"knights": {"ni": "ni"}, "eggs": "eggs"}'
+    """
+    def __init__(self, encoders):
+        super(PropertyEncoder, self).__init__()
+        self.encoders = encoders
+
+    def default(self, obj):
+        try:
+            props = self.encoders[type(obj)]
+        except KeyError:
+            return super(PropertyEncoder, self).default(obj)
+        return {
+            prop: getattr(obj, prop) for prop in props
+        }
+
+encoder = PropertyEncoder({
+})
+
+def encode(obj):
+    """Encode an object as an iterator."""
+    return encoder.iterencode(obj)
 
 class Spotify(object):
     """Spotify plugin.

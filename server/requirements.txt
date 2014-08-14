@@ -5,6 +5,3 @@ greenlet==0.4.3
 pyalsaaudio==0.7
 pycparser==2.10
 pyspotify==2.0.0b3
-requests==2.3.0
-tinyrpc==0.5
-wsgiref==0.1.2

@@ -78,7 +78,9 @@ class PropertyEncoder(json.JSONEncoder):
         }
 
 encoder = PropertyEncoder({
-    TrackSet: ('target', 'tracks')
+    TrackSet: ('target', 'tracks'),
+    spotify.Link: ('uri',),
+    spotify.Track: ('name', 'link')
 })
 
 def encode(obj):
@@ -187,28 +189,21 @@ class Spotify(object):
             'result': states[self.session.connection.state]
         })
 
-    # def _lineup(self, *args):
-    #     return [search.value for search in self._track_queue] + \
-    #         [track for search in self._playlist_queue
-    #             for track in search.value.track_set]
+    @route('/player/')
+    def player_state(self):
+        """Return the current player state."""
+        return encode({
+            'paused':         not self.playing,
+            'current_track':  self.current_track,
+            'history':        self.history,
+            'queue':          self.track_sets
+        })
 
-    # @public
-    # def player_state(self, *args):
-    #     """Return the current player state."""
-    #     return {
-    #         'paused':         not self._playing,
-    #         'current_track':  as_dict(self._current_track),
-    #         'history':        map(as_dict, self._history),
-    #         'track_queue':    map(as_dict, self._track_queue),
-    #         'playlist_queue': map(as_dict, self._playlist_queue),
-    #         'lineup':         map(as_dict, self._lineup())
-    #     }
-
-    # @public
-    # def on_player_state_changed(self, *args):
-    #     """Block until the track changes."""
-    #     self._player_state_changed.wait()
-    #     return self.player_state()
+    @route('/player/push/')
+    def push_player_state(self):
+        """Block until the track changes."""
+        self.player_state_changed.wait()
+        return self.player_state()
 
     # def _sync_player(self):
     #     """Load and play the current track, and prefetch the next."""

@@ -79,8 +79,10 @@ class PropertyEncoder(json.JSONEncoder):
 
 encoder = PropertyEncoder({
     TrackSet: ('target', 'tracks'),
+    spotify.Album: ('name', 'artist', 'cover_link', 'year'),
+    spotify.Artist: ('name', 'portrait_link'),
     spotify.Link: ('uri',),
-    spotify.Track: ('name', 'link')
+    spotify.Track: ('name', 'artists', 'album', 'link')
 })
 
 def encode(obj):

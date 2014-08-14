@@ -1,79 +1,40 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-def serve(config):
-    import gevent
-    import gevent.wsgi
-    import gevent.queue
-    from tinyrpc.dispatch import RPCDispatcher
-    from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
-    from tinyrpc.transports.wsgi import WsgiServerTransport
-    from tinyrpc.server.gevent import RPCServerGreenlets
+import json
+import os
+import sys
 
-    from butler import libspotify
+import gevent
+import gevent.wsgi
 
-    server_config = config['server']
+default_config_path =
+    os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg')))
 
-    handlers = {
-        'spotify': libspotify.Spotify
-    }
+def load_config(path):
+    config = {}
+    try:
+        with open(path, 'r') as config_file:
+            config = json.load(config_file)
+    except (IOError, ValueError) as e:
+        print(e, file=sys.stderr)
+    return config
 
-    dispatcher = RPCDispatcher()
-    for prefix, cls in handlers.iteritems():
-        handler_config = config.get(prefix, {})
-        handler = cls(handler_config)
-        dispatcher.register_instance(handler, prefix + '.')
+def create_server(config, address='127.0.0.1:80'):
+    pass
 
-    transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
-
-    wsgi_server = gevent.wsgi.WSGIServer(
-        server_config['address'], transport.handle)
-    gevent.spawn(wsgi_server.serve_forever)
-
-    rpc_server = RPCServerGreenlets(
-        transport,
-        JSONRPCProtocol(),
-        dispatcher
-    )
+def serve(config_path):
+    config = load_config(config_path)
+    server_config = config.get('server', {})
+    server = create_server(config, **server_config)
 
     try:
-        rpc_server.serve_forever()
+        server.serve_forever()
     except KeyboardInterrupt:
         pass
 
-def ask(config, method, *args):
-    from tinyrpc.exc import RPCError
-    from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
-    from tinyrpc.transports.http import HttpPostClientTransport
-    from tinyrpc import RPCClient
-
-    server_config = config['server']
-
-    rpc_client = RPCClient(
-        JSONRPCProtocol(),
-        HttpPostClientTransport('http://' + server_config['address'])
-    )
-
-    try:
-        result = rpc_client.call(method, args, {})
-    except RPCError as e:
-        print(e.message, file=sys.stderr)
-        sys.exit(1)
-    else:
-        print(result)
-
 if __name__ == '__main__':
-    import json
-    import os
-    import sys
-
-    # TODO: nicer errors
-    config_file = open(
-        os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg')))
-    config = json.load(config_file)
-    config_file.close()
-
+    config_path = default_config_path
     if len(sys.argv) > 1:
-        ask(config, sys.argv[1], *sys.argv[2:])
-    else:
-        serve(config)
+        config_path = sys.argv[1]
+    serve(config_path)

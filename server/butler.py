@@ -8,7 +8,7 @@ import sys
 import gevent
 import gevent.wsgi
 
-from dispatcher import Dispatcher
+from endpoint import Dispatcher
 import plugins
 
 default_config_path = \

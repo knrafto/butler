@@ -1,6 +1,8 @@
+from __future__ import print_function
+
 import functools
-import json
 import inspect
+import sys
 
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Map, Rule, Submount
@@ -142,9 +144,9 @@ class Dispatcher(object):
     def dispatch(self, f, kwds):
         """Dispatch a request to the given function."""
         try:
-            obj = inject(f, self.delegates)(**kwds)
-            result = json.dumps(obj)
+            result = inject(f, self.delegates)(**kwds)
         except Exception as e:
+            print(e, file=sys.stderr)
             raise InternalServerError(str(e))
         return Response(result, content_type='application/json')
 

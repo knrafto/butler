@@ -41,7 +41,7 @@ def routes(obj):
     ]
 
 def require(*names):
-    """A decorator that declares the names of the delegates that this
+    """A decorator that declares the names of the resources that this
     endpoint needs. The required dependencies will be passed to the
     function in order. If the string '*' is passed, a dictionary of
     all resources will be injected.

@@ -8,8 +8,11 @@ import sys
 import gevent
 import gevent.wsgi
 
-default_config_path =
-    os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg')))
+from dispatcher import Dispatcher
+import plugins
+
+default_config_path = \
+    os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg'))
 
 def load_config(path):
     config = {}
@@ -21,12 +24,13 @@ def load_config(path):
     return config
 
 def create_server(config, address='127.0.0.1:80'):
-    pass
+    delegates = plugins.start(config)
+    return gevent.wsgi.WSGIServer(address, Dispatcher(delegates))
 
 def serve(config_path):
     config = load_config(config_path)
-    server_config = config.get('server', {})
-    server = create_server(config, **server_config)
+    kwds = config.get('server', {})
+    server = create_server(config, **kwds)
 
     try:
         server.serve_forever()

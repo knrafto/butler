@@ -7,16 +7,16 @@ import sys
 from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Map, Rule, Submount
 from werkzeug.wsgi import responder
-from werkzeug.wrappers import Response
+from werkzeug.wrappers import Request
 
-def route(url):
+def route(string, **kwds):
     """A decorator that exposes a function as an endpoint with the
-    specified URL, in Werkzeug format.
+    specified URL, in Werkzeug Rule format.
     """
     def g(f):
-        if not hasattr(f, '_urls'):
-            f._urls = []
-        f._urls.append(url)
+        if not hasattr(f, '_routes'):
+            f._routes = []
+        f._routes.append((string, kwds))
         return f
     return g
 
@@ -35,11 +35,11 @@ def routes(obj):
     ['/<int:year>/<int:month>/<int:day>/', '/<int:year>/<int:month>/', '/']
     """
     return [
-        Rule(url, endpoint=f)
+        Rule(string, endpoint=f, **kwds)
         for name, f in inspect.getmembers(
-            obj, lambda f: callable(f) and hasattr(f, '_urls')
+            obj, lambda f: callable(f) and hasattr(f, '_routes')
         )
-        for url in f._urls
+        for (string, kwds) in f._routes
     ]
 
 def require(*names):
@@ -107,20 +107,22 @@ class Dispatcher(object):
     dependency injection. The delegate URLs are mounting in a
     submount identified by the delegate name.
 
-    All delegate endpoints should return a JSON-encodable Python
-    object.
+    Delegate endpoints will be called with any dependencies they
+    require, a Request object, and any keyword arguments from the
+    URL. They should return a Response object.
 
     >>> from werkzeug.test import Client
+    >>> from werkzeug.wrappers import Response
     >>> class Spam(object):
     ...    @route('/<int:id>/')
-    ...    def echo(self, **kwds):
-    ...        return kwds
+    ...    def spam(self, request, id=0):
+    ...        return Response(str(id))
     ...
     >>> class Knights(object):
-    ...    @route('/<int:id>/')
+    ...    @route('/<int:id>/', methods=["POST"])
     ...    @require('spam')
-    ...    def echo(self, spam, id=0):
-    ...        return spam.echo(id=id)
+    ...    def knights(self, spam, request, id=0):
+    ...        return spam.spam(request, id=id)
     ...
     >>> delegates = {
     ...     'spam': Spam(),
@@ -129,10 +131,10 @@ class Dispatcher(object):
     >>> c = Client(Dispatcher(delegates))
     >>> app_iter, _, _ = c.get('/spam/2/')
     >>> ''.join(app_iter)
-    '{"id": 2}'
-    >>> app_iter, _, _ = c.get('/knights/4/')
+    '2'
+    >>> app_iter, _, _ = c.post('/knights/4/')
     >>> ''.join(app_iter)
-    '{"id": 4}'
+    '4'
     """
     def __init__(self, delegates):
         self.delegates = delegates
@@ -141,17 +143,17 @@ class Dispatcher(object):
                 for name, delegate in self.delegates.iteritems()
         ])
 
-    def dispatch(self, f, kwds):
-        """Dispatch a request to the given function."""
-        try:
-            result = inject(f, self.delegates)(**kwds)
-        except Exception as e:
-            print(e, file=sys.stderr)
-            raise InternalServerError(str(e))
-        return Response(result, content_type='application/json')
-
     @responder
     def __call__(self, environ, start_reponse):
         """Respond to a request."""
+        request = Request(environ)
         urls = self.url_map.bind_to_environ(environ)
-        return urls.dispatch(self.dispatch, catch_http_exceptions=True)
+
+        def dispatch(f, kwds):
+            try:
+                return inject(f, self.delegates)(request, **kwds)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                raise InternalServerError(str(e))
+
+        return urls.dispatch(dispatch, catch_http_exceptions=True)

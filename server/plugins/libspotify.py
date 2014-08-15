@@ -366,7 +366,7 @@ class Spotify(object):
             if not self._queue:
                 break
             try:
-                self._queue[0].advance()
+                self._queue[0].next()
             except StopIteration:
                 self._queue.pop(0)
             else:

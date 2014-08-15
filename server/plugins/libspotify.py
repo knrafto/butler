@@ -1,15 +1,16 @@
-from __future__ import print_function
-
 import json
 import os
 import random
 import sys
+import traceback
 
 import gevent
 import gevent.event
 import Queue
 import spotify
-from werkzeug.exceptions import Unauthorized
+from werkzeug.exceptions import (
+    BadGateway, BadRequest, HTTPException, Unauthorized)
+from werkzeug.wrappers import Response
 
 from endpoint import route
 
@@ -18,20 +19,13 @@ class TrackSet(object):
     target = None
     tracks = []
 
-    def __init__(self, target):
-        """Create a set from a Spotify object."""
+    def __init__(self, target, tracks):
+        """Create a set from a Spotify object and its tracks."""
         self.target = target
-        if isinstance(target, spotify.Track):
-            self.tracks = [target]
-        else:
-            self.tracks = target.tracks
+        self.tracks = tracks
 
-    @property
-    def current(self):
-        """Return the current track. Raises IndexError if all tracks
-        have been played.
-        """
-        return self.tracks[0]
+    def __iter__(self):
+        return self
 
     def next(self):
         """Return the next track. Raises StopIteration if all tracks
@@ -79,15 +73,17 @@ class PropertyEncoder(json.JSONEncoder):
 
 encoder = PropertyEncoder({
     TrackSet: ('target', 'tracks'),
-    spotify.Album: ('name', 'artist', 'cover_link', 'year'),
-    spotify.Artist: ('name', 'portrait_link'),
     spotify.Link: ('uri',),
-    spotify.Track: ('name', 'artists', 'album', 'link')
+    spotify.Track: ('name', 'album', 'duration', 'link'),
+    spotify.Album: ('name', 'artist', 'cover_link', 'year', 'link'),
+    spotify.Artist: ('name', 'link'),
+    spotify.Playlist: ('name', 'owner', 'link'),
+    spotify.User: ('display_name', 'link')
 })
 
 def encode(obj):
-    """Encode an object as an iterator."""
-    return encoder.iterencode(obj)
+    """Encode an object as a Response."""
+    return Response(encoder.iterencode(obj), content_type='application/json')
 
 class Spotify(object):
     """Spotify plugin.
@@ -109,34 +105,37 @@ class Spotify(object):
         if not os.path.exists(config.settings_location):
             os.makedirs(config.settings_location)
 
-        self.session = spotify.Session(config)
+        self._session = spotify.Session(config)
 
-        spotify.AlsaSink(self.session)
+        spotify.AlsaSink(self._session)
 
         self._pending = Queue.Queue()
         gevent.spawn(self._process_events)
         self._notify()
 
-        self.session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, self._notify)
-        # self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self.pause)
-        # self._session.on(spotify.SessionEvent.STREAMING_ERROR, self.pause)
-        # self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self.pause)
-        # self._session.on(spotify.SessionEvent.END_OF_TRACK, self.next_track)
+        self._loading = []
 
-        self.timeout = timeout
+        self._session.on(spotify.SessionEvent.NOTIFY_MAIN_THREAD, self._notify)
+        self._session.on(spotify.SessionEvent.CONNECTION_ERROR, self._pause)
+        self._session.on(spotify.SessionEvent.STREAMING_ERROR, self._pause)
+        self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self._pause)
+        self._session.on(spotify.SessionEvent.END_OF_TRACK, self._end_of_track)
+
+        self._timeout = timeout
 
         # Playback
-        self.playing = False
-        self.current_track = None
-        self.history = []
-        self.track_sets = []
+        self._playing = False
+        self._current_track = None
+        self._history = []
+        self._queue = []
 
-        self.player_state_changed = gevent.event.Event()
+        self._player_state_changed = gevent.event.Event()
 
         # Relogin
-        self.session.relogin()
+        self._session.relogin()
 
     def _process_events(self):
+        """Process events and load resources."""
         while True:
             try:
                 self._pending.get(False)
@@ -144,20 +143,175 @@ class Spotify(object):
                 gevent.sleep(0.001) # spin
             else:
                 try:
-                    timeout = self.session.process_events() / 1000.0
-                except Exception as e:
-                    print(e, file=sys.stderr)
+                    timeout = self._session.process_events() / 1000.0
+                except Exception:
+                    traceback.print_exc()
+                self._check_loaded()
                 gevent.spawn_later(timeout, self._notify)
 
     def _notify(self, *args):
+        """Notify the main thread to process events."""
         self._pending.put(1)
 
-    def guard(self):
-        if self.session.connection.state not in (
+    def _pause(self, *args):
+        """Pause playback."""
+        self._playing = False
+        self._session.player.pause()
+
+    def _end_of_track(self, session):
+        """Play the next track."""
+        self.next_track(None)
+
+    def _guard(self):
+        """Ensure the user is logged in."""
+        if self._session.connection.state not in (
             spotify.ConnectionState.LOGGED_IN,
             spotify.ConnectionState.OFFLINE
         ):
             raise Unauthorized()
+
+    def _timeout_context(self):
+        """Return a context manager that will timeout the current
+        operation with a 502: Bad Gateway.
+        """
+        return gevent.Timeout(
+            self._timeout,
+            BadGateway('Spotify operation timed out')
+        )
+
+    def _fetch(self, uri):
+        """Fetch a resource from a link."""
+        link = self._session.get_link(uri)
+        if link.type == spotify.LinkType.TRACK:
+            return link.as_track()
+        elif link.type == spotify.LinkType.ALBUM:
+            return link.as_album()
+        elif link.type == spotify.LinkType.ARTIST:
+            return link.as_artist()
+        elif link.type == spotify.LinkType.PLAYLIST:
+            return link.as_playlist()
+        else:
+            raise ValueError("Unknown link type for '%s': %r"
+                % (uri, link.type))
+
+    def _check_error(self, resource):
+        """Check the error of a resource."""
+        error_type = getattr(resource, 'error', spotify.ErrorType.OK)
+        spotify.Error.maybe_raise(
+            error_type, ignores=[spotify.ErrorType.IS_LOADING])
+
+    def _check_loaded(self):
+        """Check if resources are loaded."""
+        for result, resource in self._loading:
+            if resources.is_loaded:
+                result.set(resource)
+            else:
+                try:
+                    self._check_error(resources)
+                except spotify.LibError as e:
+                    result.set_exception(e)
+
+    def _load(self, resource):
+        """Block until a resource is loaded."""
+        self._check_error(resource)
+        if resource.is_loaded:
+            return resource
+
+        result = gevent.event.AsyncResult()
+        self._loading.append((resource, result))
+        try:
+            return result.get()
+        finally:
+            self._loading.remove((resource, result))
+
+    def _load_all(self, resource):
+        """Load a resource and everything it references."""
+        self._load(resource)
+        if isinstance(resource, spotify.Track):
+            for artist in resource.artists:
+                self._load_all(artist)
+            self._load_all(resource.album)
+        elif isinstance(resource, spotify.Album):
+            self._load_all(resource.artist)
+        elif isinstance(resource, spotify.Playlist):
+            for track in resource.tracks:
+                self._load_all(track)
+            self._load_all(resource.owner)
+
+    def _tracks(self, resource):
+        """Get tracks for a loaded resource."""
+        self._load_all(resource)
+        if isinstance(resource, spotify.Track):
+            tracks = [resource]
+        elif isinstance(resource, (spotify.Album, spotify.Artist)):
+            tracks = self._load(resource.browse()).tracks
+            for track in resource.tracks:
+                self._load(track)
+        elif isinstance(resource, spotify.Playlist):
+            tracks = resource.tracks
+        else:
+            raise TypeError("Cannot load tracks from '%s' object"
+                % type(resource).__name__)
+        return TrackSet(resource, tracks)
+
+    def _sync_player(self):
+        """Load and play the current track, and prefetch the next."""
+        lineup = [
+            track
+                for track_set in self._queue
+                for track in track_set.tracks
+        ]
+
+        try:
+            track = lineup[0]
+        except IndexError:
+            self._current_track = None
+            self._session.player.unload()
+            self._playing = False
+        else:
+            self._current_track = track
+            self._session.player.load(track)
+            self._playing = True
+            self._session.player.play()
+
+        try:
+            next_track = lineup[1]
+        except IndexError:
+            pass
+        else:
+            self._session.player.prefetch(next_track)
+
+        self._player_state_changed.set()
+        self._player_state_changed = gevent.event.Event()
+
+    def _insert(self, track_set, where='start'):
+        """Insert a track set at a position."""
+        prev_head = self._queue[0] if self._queue else None
+
+        if where is None:
+            where = 'start'
+
+        if isinstance(where, int):
+            self._queue.insert(where, track_set)
+        if where == 'start':
+            self._queue[0:1] = [track_set]
+        elif where == 'next':
+            self._queue.insert(1, track_set)
+        elif where == 'later':
+            index = next(
+                (i for i, s in enumerate(self._queue)
+                    if type(s.target) is not spotify.Track),
+                -1
+            )
+            self._queue.insert(index, track_set)
+        elif when == 'end':
+            self._queue.append(track_set)
+        else:
+            raise ValueError('Unknown ')
+
+        head = self._queue[0] if self._queue else None
+        if head is not prev_head:
+            self._sync_player()
 
     # @public
     # def login(self, username, password):
@@ -179,7 +333,7 @@ class Spotify(object):
     #     result.get(self._timeout)
 
     @route('/connection/')
-    def connection(self):
+    def connection(self, request):
         states = [
             'Logged out',
             'Logged in',
@@ -188,199 +342,108 @@ class Spotify(object):
             'Offline'
         ]
         return encode({
-            'result': states[self.session.connection.state]
+            'result': states[self._session.connection.state]
         })
 
-    @route('/player/')
-    def player_state(self):
+    @route('/state/')
+    def player_state(self, request):
         """Return the current player state."""
         return encode({
-            'paused':         not self.playing,
-            'current_track':  self.current_track,
-            'history':        self.history,
-            'queue':          self.track_sets
+            'paused': not self._playing,
+            'current_track': self._current_track,
+            'history': self._history,
+            'queue': self._queue
         })
 
-    @route('/player/push/')
-    def push_player_state(self):
+    @route('/state/push/')
+    def push_player_state(self, request):
         """Block until the track changes."""
-        self.player_state_changed.wait()
-        return self.player_state()
+        self._player_state_changed.wait()
+        return self.player_state(request)
 
-    # def _sync_player(self):
-    #     """Load and play the current track, and prefetch the next."""
-    #     lineup = self._lineup()
+    @route('/player/next_track/', methods=["POST"])
+    def next_track(self, request):
+        """Load and play the next track."""
+        self._guard()
+        while True:
+            if not self._queue:
+                break
+            try:
+                self._queue[0].advance()
+            except StopIteration:
+                self._queue.pop(0)
+            else:
+                break
 
-    #     try:
-    #         track = lineup[0]
-    #     except IndexError:
-    #         track = None
+        if self._current_track:
+            self._history.insert(0, self._current_track)
+        self._sync_player()
+        return Response()
 
-    #     if track and track is not self._current_track:
-    #         self._session.player.load(track.data)
-    #         self._playing = True
-    #         self._session.player.play()
-    #     elif not track:
-    #         self._playing = False
-    #         self._session.player.unload()
+    @route('/player/prev_track/', methods=["POST"])
+    def prev_track(self, request):
+        """Load and play the previous track."""
+        self._guard()
+        try:
+            track = self._history.pop(0)
+        except IndexError:
+            pass
+        else:
+            self._queue.insert(0, TrackSet(track))
+            self._sync_player()
+        return Response()
 
-    #     self._current_track = track
-    #     self._player_state_changed.set()
-    #     self._player_state_changed = gevent.event.Event()
+    @route('/player/next_set/', methods=["POST"])
+    def next_set(self, request):
+        """Load and play the next track set."""
+        self._guard()
+        try:
+            self._queue.pop(0)
+        except IndexError:
+            pass
+        else:
+            self._sync_player()
+        return Response()
 
-    #     try:
-    #         next_track = lineup[1]
-    #         self._session.player.prefetch(next_track.data)
-    #     except IndexError:
-    #         pass
+    @route('/player/play/', methods=["POST"])
+    def play(self, request):
+        """Resume spotify playback.
 
-    # def _drop_empty_playlists(self):
-    #     queue = self._playlist_queue
-    #     while queue and not queue[0].value.track_set:
-    #         queue.pop(0)
+        Parameters:
+            pause : If present, pause playback
+            seek (default: None): Seek position, in milliseconds
+        """
+        pause = 'pause' in request.form
+        ms = request.form.get('seek', type=int)
+        if ms:
+            self._session.player.seek(ms)
+        if not pause and self._current_track:
+            self._playing = True
+            self._session.player.play()
+        elif pause:
+            self._playing = False
+            self._session.player.pause()
+        return Response()
 
-    # @public
-    # def next_track(self, *args):
-    #     """Load and play the next track."""
-    #     self._guard()
-    #     try:
-    #         self._track_queue.pop(0)
-    #     except IndexError:
-    #         self._drop_empty_playlists()
-    #         try:
-    #             self._playlist_queue[0].value.track_set.pop(0)
-    #         except IndexError:
-    #             pass
-    #         self._drop_empty_playlists()
+    @route('/player/add/', methods=["POST"])
+    def add(self, request):
+        """Add a track or set from a link.
 
-    #     if self._current_track:
-    #         self._history.insert(0, self._current_track)
-    #     self._sync_player()
-    #     return self.player_state()
-
-    # @public
-    # def prev_track(self, *args):
-    #     """Load and play the previous track."""
-    #     self._guard()
-    #     if self._history:
-    #         track = self._history.pop(0)
-    #         self._track_queue.insert(0, Single(track))
-    #         self._sync_player()
-    #     return self.player_state()
-
-    # @public
-    # def next_playlist(self, *args):
-    #     """Load an play the next playlist."""
-    #     self._guard()
-    #     try:
-    #         self._playlist_queue.pop(0)
-    #         self._sync_player()
-    #         return as_dict(self._playlist_queue[0])
-    #     except IndexError:
-    #         pass
-
-    # @public
-    # def unpause(self, *args):
-    #     """Resume spotify playback."""
-    #     if self._current_track:
-    #         self._playing = True
-    #         self._session.player.play()
-    #     return self.player_state()
-
-    # @public
-    # def pause(self, *args):
-    #     """Pause spotify playback."""
-    #     self._playing = False
-    #     self._session.player.pause()
-    #     return self.player_state()
-
-    # @public
-    # def seek(self, ms):
-    #     """Seek to a position."""
-    #     self._session.player.seek(ms)
-    #     return ms
-
-    # def _hold(self, search, queue_type, hold_type):
-    #     def play(l):
-    #         l[0:1] = [search]
-
-    #     def bump(l):
-    #         l.insert(1, search)
-
-    #     def queue(l):
-    #         l.append(search)
-
-    #     hold_types = {
-    #         'play': play,
-    #         'bump': bump,
-    #         'queue': queue
-    #     }
-
-    #     try:
-    #         hold = hold_types[hold_type]
-    #     except KeyError:
-    #         raise Exception('Unknown hold type')
-
-    #     queue_types = {
-    #         'track': self._track_queue,
-    #         'playlist': self._playlist_queue
-    #     }
-
-    #     try:
-    #         queue_list = queue_types[queue_type]
-    #     except KeyError:
-    #         raise Exception('Unknown search type')
-
-    #     hold(queue_list)
-    #     self._sync_player()
-
-    # @public
-    # def add_uri(self, uri, queue_type, hold_type):
-    #     with self._timeout_context:
-    #         if queue_type == 'track':
-    #             item = Track.load(self._session.get_track(uri))
-    #         elif queue_type == 'playlist':
-    #             item = Playlist.load(self._session.get_playlist(uri))
-    #     self._hold(Single(item), queue_type, hold_type)
-    #     return uri
-
-    # @public
-    # def add_query(self, query, queue_type, hold_type):
-    #     self._guard()
-    #     with self._timeout_context:
-    #         search = Search.load(self._session, query,
-    #             queue_type, self._stride)
-    #     self._hold(search, queue_type, hold_type)
-    #     self._last_search = search
-    #     return self.last_result()
-
-    # @public
-    # def last_result(self, *args):
-    #     """Return the last search made."""
-    #     return as_dict(self._last_search)
-
-    # @public
-    # def next_result(self, *args):
-    #     """Go to the previous result."""
-    #     self._guard()
-    #     if self._last_search:
-    #         with self._timeout_context:
-    #             self._last_search.next()
-    #         self._sync_player()
-    #     return self.last_result()
-
-    # @public
-    # def prev_result(self, *args):
-    #     """Go to the next result."""
-    #     self._guard()
-    #     if self._last_search:
-    #         self._last_search.prev()
-    #         self._sync_player()
-    #     return self.last_result()
-
-    # @public
-    # def search(self, query, search_type, offset=0, stride=None):
-    #     self._guard()
-    #     results = Search.search(self._session, query,
-    #         search_type, offset, stride)
-    #     return map(as_dict, results)
+        Parameters:
+            uri/url: the Spotify uri/url
+            where (default: 'start'): one of 'start', 'next', 'later', 'end',
+                or an index
+        """
+        self._guard()
+        uri = request.form.get('uri') or request.form.get('url')
+        when = request.form.get('where')
+        try:
+            with self._timeout_context():
+                resource = self._fetch(uri)
+                track_set = self._tracks(resource)
+            self._insert(track_set, when)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise BadRequest(str(e))
+        return Response()

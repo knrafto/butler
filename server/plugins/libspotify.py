@@ -1,7 +1,6 @@
 import json
 import os
 import random
-import sys
 import traceback
 
 import gevent
@@ -331,6 +330,7 @@ class Spotify(object):
 
     @route('/connection/')
     def connection(self, request):
+        """Return the connection state."""
         states = [
             'Logged out',
             'Logged in',

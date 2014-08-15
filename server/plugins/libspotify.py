@@ -210,12 +210,12 @@ class Spotify(object):
 
     def _check_loaded(self):
         """Check if resources are loaded."""
-        for result, resource in self._loading:
-            if resources.is_loaded:
+        for resource, result in self._loading:
+            if resource.is_loaded:
                 result.set(resource)
             else:
                 try:
-                    self._check_error(resources)
+                    self._check_error(resource)
                 except spotify.LibError as e:
                     result.set_exception(e)
 
@@ -232,35 +232,19 @@ class Spotify(object):
         finally:
             self._loading.remove((resource, result))
 
-    def _load_all(self, resource):
-        """Load a resource and everything it references."""
-        self._load(resource)
-        if isinstance(resource, spotify.Track):
-            for artist in resource.artists:
-                self._load_all(artist)
-            self._load_all(resource.album)
-        elif isinstance(resource, spotify.Album):
-            self._load_all(resource.artist)
-        elif isinstance(resource, spotify.Playlist):
-            for track in resource.tracks:
-                self._load_all(track)
-            self._load_all(resource.owner)
-
-    def _tracks(self, resource):
-        """Get tracks for a loaded resource."""
-        self._load_all(resource)
+    def _load_tracks(self, resource):
+        """Get tracks for a resource."""
         if isinstance(resource, spotify.Track):
             tracks = [resource]
         elif isinstance(resource, (spotify.Album, spotify.Artist)):
             tracks = self._load(resource.browse()).tracks
-            for track in resource.tracks:
-                self._load(track)
         elif isinstance(resource, spotify.Playlist):
+            self._load(resource)
             tracks = resource.tracks
         else:
             raise TypeError("Cannot load tracks from '%s' object"
                 % type(resource).__name__)
-        return TrackSet(resource, tracks)
+        return [self._load(track) for track in tracks]
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
@@ -438,8 +422,8 @@ class Spotify(object):
         """Add a track or set from a link.
 
         Parameters:
-            uri/url: the Spotify uri/url
-            where (default: 'start'): one of 'start', 'next', 'later', 'end',
+            uri/url (required): the Spotify uri/url
+            where: one of 'start', 'next', 'later', 'end',
                 or an index
         """
         self._guard()
@@ -448,7 +432,8 @@ class Spotify(object):
         try:
             with self._timeout_context():
                 resource = self._fetch(uri)
-                track_set = self._tracks(resource)
+                tracks = self._load_tracks(resource)
+                track_set = TrackSet(resource, tracks)
             self._insert(track_set, when)
         except HTTPException:
             raise

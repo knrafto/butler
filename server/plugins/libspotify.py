@@ -19,10 +19,12 @@ class TrackSet(object):
     target = None
     tracks = []
 
-    def __init__(self, target, tracks):
+    def __init__(self, target, tracks, shuffle=False):
         """Create a set from a Spotify object and its tracks."""
         self.target = target
         self.tracks = tracks
+        if shuffle:
+            random.shuffle(self.tracks)
 
     def __iter__(self):
         return self
@@ -402,8 +404,8 @@ class Spotify(object):
         """Resume spotify playback.
 
         Parameters:
-            pause : If present, pause playback
-            seek (default: None): Seek position, in milliseconds
+            pause: If present, pause playback
+            seek: Seek position, in milliseconds
         """
         pause = 'pause' in request.form
         ms = request.form.get('seek', type=int)
@@ -425,15 +427,17 @@ class Spotify(object):
             uri/url (required): the Spotify uri/url
             where: one of 'start', 'next', 'later', 'end',
                 or an index
+            shuffle: shuffle songs
         """
         self._guard()
         uri = request.form.get('uri') or request.form.get('url')
         when = request.form.get('where')
+        shuffle = request.form.has_key('shuffle')
         try:
             with self._timeout_context():
                 resource = self._fetch(uri)
                 tracks = self._load_tracks(resource)
-                track_set = TrackSet(resource, tracks)
+                track_set = TrackSet(resource, tracks, shuffle=shuffle)
             self._insert(track_set, when)
         except HTTPException:
             raise

@@ -307,24 +307,27 @@ class Spotify(object):
         if head is not prev_head:
             self._sync_player()
 
-    # @public
-    # def login(self, username, password):
-    #     """Log in to Spotify."""
-    #     result = gevent.event.AsyncResult()
+    @route('/login/', methods=['POST'])
+    def login(self, request):
+        """Log in to Spotify."""
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        result = gevent.event.AsyncResult()
 
-    #     def logged_in(session, error_type):
-    #         try:
-    #             spotify.Error.maybe_raise(error_type)
-    #         except spotify.LibError as e:
-    #             result.set_exception(e)
-    #         else:
-    #             result.set(None)
-    #         return False
+        def logged_in(session, error_type):
+            try:
+                spotify.Error.maybe_raise(error_type)
+            except spotify.LibError as e:
+                result.set_exception(BadRequest(str(e)))
+            else:
+                result.set(None)
+            return False
 
-    #     self._session.on(spotify.SessionEvent.LOGGED_IN, logged_in)
-    #     self._session.login(username, password, remember_me=True);
+        self._session.on(spotify.SessionEvent.LOGGED_IN, logged_in)
+        self._session.login(username, password, remember_me=True);
 
-    #     result.get(self._timeout)
+        with self._timeout_context():
+            result.get()
 
     @route('/connection/')
     def connection(self, request):

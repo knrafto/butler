@@ -1,0 +1,8 @@
+Werkzeug==0.9.6
+cffi==0.8.6
+gevent==1.0.1
+greenlet==0.4.3
+pyalsaaudio==0.7
+pycparser==2.10
+pyspotify==2.0.0b3
+wsgiref==0.1.2

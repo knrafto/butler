@@ -36,49 +36,57 @@ class TrackSet(object):
         except IndexError:
             raise StopIteration
 
-class PropertyEncoder(json.JSONEncoder):
+    def encode(self):
+        """Return a dictionary representation."""
+        return {
+            'target': self.target,
+            'tracks': self.tracks
+        }
+
+class DictEncoder(json.JSONEncoder):
     """An encoder that uses a list of properties to serialize an
     object. Takes a dictionary of type: properties.
 
-    >>> class Monty(object):
-    ...     def __init__(self, ni):
-    ...         self.ni = ni
-    ...
     >>> class Spam(object):
     ...     def __init__(self, eggs):
     ...         self.eggs = eggs
     ...     @property
-    ...     def knights(self): return Monty('ni')
+    ...     def knights(self): return Knight()
     ...
-    >>> encoder = PropertyEncoder({
-    ...     Monty: ('ni',),
-    ...     Spam: ('eggs', 'knights')
+    >>> class Knight(object):
+    ...     pass
+    ...
+    >>> encoder = DictEncoder({
+    ...     Spam: lambda obj: {
+    ...         'eggs': obj.eggs,
+    ...         'knights': obj.knights
+    ...     },
+    ...     Knight: lambda obj: "ni"
     ... })
     ...
     >>> encoder.encode(Spam('eggs'))
-    '{"knights": {"ni": "ni"}, "eggs": "eggs"}'
+    '{"knights": "ni", "eggs": "eggs"}'
     """
     def __init__(self, encoders):
-        super(PropertyEncoder, self).__init__()
+        super(DictEncoder, self).__init__()
         self.encoders = encoders
 
     def default(self, obj):
         try:
-            props = self.encoders[type(obj)]
+            encoder = self.encoders[type(obj)]
         except KeyError:
-            return super(PropertyEncoder, self).default(obj)
-        return {
-            prop: getattr(obj, prop) for prop in props
-        }
+            return super(DictEncoder, self).default(obj)
+        return encoder(obj)
 
-encoder = PropertyEncoder({
-    TrackSet: ('target', 'tracks'),
-    spotify.Link: ('uri',),
-    spotify.Track: ('name', 'album', 'duration', 'link'),
-    spotify.Album: ('name', 'artist', 'cover_link', 'year', 'link'),
-    spotify.Artist: ('name', 'link'),
-    spotify.Playlist: ('name', 'owner', 'link'),
-    spotify.User: ('display_name', 'link')
+def to_uri(resource):
+    return resource.link.uri
+
+encoder = DictEncoder({
+    TrackSet: lambda obj: obj.encode(),
+    spotify.Track: to_uri,
+    spotify.Album: to_uri,
+    spotify.Artist: to_uri,
+    spotify.Playlist: to_uri,
 })
 
 def encode(obj):

@@ -3,8 +3,9 @@ from __future__ import print_function
 import functools
 import inspect
 import sys
+import traceback
 
-from werkzeug.exceptions import InternalServerError
+from werkzeug.exceptions import InternalServerError, HTTPException
 from werkzeug.routing import Map, Rule, Submount
 from werkzeug.wsgi import responder
 from werkzeug.wrappers import Request
@@ -152,8 +153,10 @@ class Dispatcher(object):
         def dispatch(f, kwds):
             try:
                 return inject(f, self.delegates)(request, **kwds)
-            except Exception as e:
-                print(e, file=sys.stderr)
-                raise InternalServerError(str(e))
+            except HTTPException:
+                raise
+            except Exception:
+                traceback.print_exc()
+                raise InternalServerError()
 
         return urls.dispatch(dispatch, catch_http_exceptions=True)

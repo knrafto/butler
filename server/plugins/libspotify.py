@@ -358,7 +358,7 @@ class Spotify(object):
         self._player_state_changed.wait()
         return self.player_state(request)
 
-    @route('/player/next_track/', methods=["POST"])
+    @route('/next_track/', methods=["POST"])
     def next_track(self, request):
         """Load and play the next track."""
         self._guard()
@@ -377,7 +377,7 @@ class Spotify(object):
         self._sync_player()
         return Response()
 
-    @route('/player/prev_track/', methods=["POST"])
+    @route('/prev_track/', methods=["POST"])
     def prev_track(self, request):
         """Load and play the previous track."""
         self._guard()
@@ -390,7 +390,7 @@ class Spotify(object):
             self._sync_player()
         return Response()
 
-    @route('/player/next_set/', methods=["POST"])
+    @route('/next_set/', methods=["POST"])
     def next_set(self, request):
         """Load and play the next track set."""
         self._guard()
@@ -402,7 +402,7 @@ class Spotify(object):
             self._sync_player()
         return Response()
 
-    @route('/player/play/', methods=["POST"])
+    @route('/playback/', methods=["POST"])
     def play(self, request):
         """Resume spotify playback.
 
@@ -422,7 +422,7 @@ class Spotify(object):
             self._session.player.pause()
         return Response()
 
-    @route('/player/add/', methods=["POST"])
+    @route('/add/', methods=["POST"])
     def add(self, request):
         """Add a track or set from a link.
 

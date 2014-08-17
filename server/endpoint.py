@@ -1,147 +1,137 @@
-from __future__ import print_function
-
 import functools
 import inspect
 import sys
-import traceback
 
-from werkzeug.exceptions import InternalServerError, HTTPException
+from werkzeug.exceptions import InternalServerError
 from werkzeug.routing import Map, Rule, Submount
+from werkzeug.utils import ArgumentValidationError, validate_arguments
 from werkzeug.wsgi import responder
-from werkzeug.wrappers import Request
+from werkzeug.wrappers import Request, Response
 
-def route(string, **kwds):
-    """A decorator that exposes a function as an endpoint with the
-    specified URL, in Werkzeug Rule format.
-    """
-    def g(f):
-        if not hasattr(f, '_routes'):
-            f._routes = []
-        f._routes.append((string, kwds))
-        return f
-    return g
+def curry(f):
+    def curried(*args, **kwds):
+        return functools.partial(f, *args, **kwds)
+    return curried
 
-def routes(obj):
-    """Return the list of Werkzeug rules for an object.
+class Endpoint(object):
+    """An HTTP endpoint that can be used as a normal function.
 
-    >>> class Plugin(object):
-    ...     @route('/')
-    ...     def root(): pass
-    ...     @route('/<int:year>/<int:month>/')
-    ...     @route('/<int:year>/<int:month>/<int:day>/')
-    ...     def archive(year=None, month=None, day=None): pass
-    ...     def hidden(): pass
+    :param string: The :class:Rule string.
+    :param f: The wrapped function.
+    :param response_handler: A function that, if present, will be
+        called with the result of the wrapped function.
+    :param error_handler: A function that, if present, will be
+        called with any exception the wrapped function raises.
+    :param kwds: Keyword arguments for :class:Rule.
+
+    >>> def foo(x=0):
+    ...     return x + 2
     ...
-    >>> [str(r) for r in routes(Plugin())]
-    ['/<int:year>/<int:month>/<int:day>/', '/<int:year>/<int:month>/', '/']
+    >>> f = Endpoint('/<int:x>/', foo,
+    ...              response_handler=str,
+    ...              error_handler=type)
+    >>> str(f.rule)
+    '/<int:x>/'
+    >>> f(3)
+    5
+    >>> f.dispatch(3)
+    '5'
+    >>> f.dispatch('spam')
+    <type 'exceptions.TypeError'>
     """
-    return [
-        Rule(string, endpoint=f, **kwds)
-        for name, f in inspect.getmembers(
-            obj, lambda f: callable(f) and hasattr(f, '_routes')
-        )
-        for (string, kwds) in f._routes
-    ]
 
-def require(*names):
-    """A decorator that declares the names of the resources that this
-    endpoint needs. The required dependencies will be passed to the
-    function in order. If the string '*' is passed, a dictionary of
-    all resources will be injected.
-    """
-    def g(f):
-        f._deps = names
-        return f
-    return g
+    rule = None
+    """The :class:Rule for routing."""
 
-class DependencyError(Exception):
-    """Raised when a dependency cannot be found."""
-    pass
+    def __init__(self, string, f,
+                 response_handler=None, error_handler=None,
+                 **kwds):
+        self.rule = Rule(string, endpoint=self, **kwds)
+        self.f = f
+        self.response_handler = response_handler
+        self.error_handler = error_handler
+        functools.update_wrapper(self, f)
 
-def inject(f, resources):
-    """Resolve all dependencies that a function needs using the
-    given resources.
+    def __call__(self, *args, **kwds):
+        """Call the wrapped function normally."""
+        return self.f(*args, **kwds)
 
-    >>> @require('spam', 'eggs')
-    ... def foo(spam, eggs, x):
-    ...     return spam + eggs + x
-    ...
-    >>> def bar(x):
-    ...     return x
-    ...
-    >>> @require('spam', '*')
-    ... def baz(spam, delegates, x):
-    ...     return spam + delegates['eggs'] + x
-    ...
-    >>> r1 = {
-    ...     'spam': 1,
-    ...     'eggs': 2
-    ... }
-    >>> inject(foo, r1)(3)
-    6
-    >>> inject(bar, r1)(3)
-    3
-    >>> inject(baz, r1)(3)
-    6
-    >>> r2 = {
-    ...     'spam': 1
-    ... }
-    >>> inject(foo, r2)(3)
-    Traceback (most recent call last):
-       ...
-    DependencyError: Missing dependency 'eggs'
-    """
-    def resolve(dep):
-        if dep == '*':
-            return resources
+    def dispatch(self, *args, **kwds):
+        """Dispatch a request and pass URL arguments to the wrapped
+        function. Any form or query values will be passed as well.
+
+        If the function returns a value, :attribute:response_handler
+        will be called with the result. If the function raises an
+        exception, :attribute:error_handler will be called with the
+        exception object. These methods should return a WSGI
+        application, such as a :class:Response object.
+        """
         try:
-            return resources[dep]
-        except KeyError:
-            raise DependencyError("Missing dependency '%s'" % dep)
-    args = (resolve(dep) for dep in getattr(f, '_deps', ()))
-    return functools.partial(f, *args)
+            args, kwds = validate_arguments(self.f, args, kwds)
+        except ArgumentValidationError:
+            pass # TODO
+
+        try:
+            try:
+                result = self.f(*args, **kwds)
+            except:
+                if self.error_handler:
+                    result = self.error_handler(sys.exc_info()[1])
+            else:
+                if self.response_handler:
+                    result = self.response_handler(result)
+            return result
+        except Exception as e:
+            return InternalServerError(str(e))
+
+endpoint = curry(Endpoint)
+
 
 class Dispatcher(object):
     """A WSGI application that dispatches requests to delegates.
 
-    Each delegate is identified by a name, which will be used in
-    dependency injection. The delegate URLs are mounting in a
-    submount identified by the delegate name.
+    Each delegate is identified by a name. The delegate URLs are
+    mounted in a submount identified by the delegate name.
 
     Delegate endpoints will be called with any dependencies they
     require, a Request object, and any keyword arguments from the
     URL. They should return a Response object.
 
+    :param delegates: A dictionary of delegates.
+
+    >>> from werkzeug.exceptions import InternalServerError
     >>> from werkzeug.test import Client
     >>> from werkzeug.wrappers import Response
     >>> class Spam(object):
-    ...    @route('/<int:id>/')
-    ...    def spam(self, request, id=0):
-    ...        return Response(str(id))
+    ...     @endpoint('/<int:x>/', response_handler=Response)
+    ...     def foo(x=0):
+    ...         return str(x + 2)
     ...
-    >>> class Knights(object):
-    ...    @route('/<int:id>/', methods=["POST"])
-    ...    @require('spam')
-    ...    def knights(self, spam, request, id=0):
-    ...        return spam.spam(request, id=id)
+    >>> class Eggs(object):
+    ...     @endpoint('/<string:s>/',
+    ...               error_handler=InternalServerError)
+    ...     def foo(s=''):
+    ...         raise Exception('ni')
     ...
-    >>> delegates = {
+    >>> dispatcher = Dispatcher({
     ...     'spam': Spam(),
-    ...     'knights': Knights()
-    ... }
-    >>> c = Client(Dispatcher(delegates))
-    >>> app_iter, _, _ = c.get('/spam/2/')
-    >>> ''.join(app_iter)
-    '2'
-    >>> app_iter, _, _ = c.post('/knights/4/')
-    >>> ''.join(app_iter)
-    '4'
+    ...     'eggs': Eggs()
+    ... })
+    >>> c = Client(dispatcher, Response)
+    >>> c.get('/spam/3/').data
+    '5'
+    >>> c.get('/eggs/ni/').data[:14]
+    '<!DOCTYPE HTML'
     """
     def __init__(self, delegates):
         self.delegates = delegates
         self.url_map = Map([
-            Submount('/' + name, routes(delegate))
-                for name, delegate in self.delegates.iteritems()
+            Submount('/' + name, [
+                f.rule for _, f in inspect.getmembers(
+                    delegate, lambda f: isinstance(f, Endpoint)
+                )
+            ])
+            for name, delegate in self.delegates.iteritems()
         ])
 
     @responder
@@ -151,12 +141,7 @@ class Dispatcher(object):
         urls = self.url_map.bind_to_environ(environ)
 
         def dispatch(f, kwds):
-            try:
-                return inject(f, self.delegates)(request, **kwds)
-            except HTTPException:
-                raise
-            except Exception:
-                traceback.print_exc()
-                raise InternalServerError()
+            kwds.update(request.values.to_dict())
+            return f.dispatch(**kwds)
 
-        return urls.dispatch(dispatch, catch_http_exceptions=True)
+        return urls.dispatch(dispatch)

@@ -1,5 +1,6 @@
 import functools
 import inspect
+import json
 import sys
 
 from werkzeug.exceptions import InternalServerError
@@ -86,6 +87,80 @@ class Endpoint(object):
 
 endpoint = curry(Endpoint)
 
+class DefaultEncoder(json.JSONEncoder):
+    """The default JSON encoder. When encoding objects, if the object
+    has a :method:json method, it will be used to convert the object.
+
+    >>> class Spam(object):
+    ...     def json(self):
+    ...         return ['spam', 'eggs']
+    ...
+    >>> DefaultEncoder().encode({'spam': Spam()})
+    '{"spam": ["spam", "eggs"]}'
+    """
+    def default(self, obj):
+        try:
+            encode = obj.json
+        except AttributeError:
+            return super(Encoder, self).default(obj)
+        else:
+            return encode()
+
+class JSONEndpoint(Endpoint):
+    """An JSON endpoint that can be used as a normal function.
+
+    :param string: The :class:Rule string.
+    :param f: The wrapped function.
+    :param encoder: A :class:JSONEncoder. The default encoder is
+        :class:DefaultEncoder.
+    :param exceptions: A list of (type, status) pairs that will
+        be used to encode failures. The exception types are tried in
+        order to determine the status of an exception. The default
+        status code is 500: Internal Server Error.
+
+    >>> def foo(x=0):
+    ...     if not isinstance(x, int):
+    ...         raise TypeError('oops')
+    ...     return x + 2
+    ...
+    >>> f = JSONEndpoint('/<int:x>/', foo,
+    ...                  encoder=DefaultEncoder(sort_keys=True),
+    ...                  exceptions=[(TypeError, 400)])
+    >>> str(f.rule)
+    '/<int:x>/'
+    >>> f(3)
+    5
+    >>> f.dispatch(3).data
+    '5'
+    >>> f.dispatch('spam').data
+    '{"message": "oops", "status": 400}'
+    """
+    def __init__(self, string, f, encoder=None, exceptions=None, **kwds):
+        super(JSONEndpoint, self).__init__(
+            string, f,
+            response_handler=self._encode_response,
+            error_handler=self._encode_error,
+            **kwds)
+        self.encoder = encoder or DefaultEncoder()
+        self.exceptions = exceptions or []
+
+    def _encode_response(self, result, status=None):
+        return Response(
+            self.encoder.iterencode(result), status,
+            content_type='application/json')
+
+    def _encode_error(self, e):
+        status = 500
+        for exctypes, code in self.exceptions:
+            if isinstance(e, exctypes):
+                status = code
+                break
+        return self._encode_response({
+            'status': status,
+            'message': str(e)
+        }, status)
+
+json_endpoint = curry(JSONEndpoint)
 
 class Dispatcher(object):
     """A WSGI application that dispatches requests to delegates.

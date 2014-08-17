@@ -1,4 +1,9 @@
-"""Plugins and dependency injection"""
+"""Plugins and dependency injection."""
+import inspect
+
+from werkzeug.utils import (
+    ArgumentValidationError,
+    find_modules, import_string, validate_arguments)
 
 class Plugin(object):
     """Plugin base class.
@@ -76,11 +81,21 @@ def inject(plugins, config):
     2
     """
     plugins = {plugin.name: plugin for plugin in plugins}
-    graph = {name: plugin.depends for name, plugin in plugins.iteritems()}
+    graph = {name: plugin.depends for name, plugin in plugins.items()}
     started = {}
     for name in reversed(topsort(graph)):
         plugin = plugins[name]
         args = (started[dep] for dep in plugin.depends)
         kwds = config.get(name, {})
+        args, kwds = validate_arguments(plugin, args, kwds, drop_extra=False)
         started[name] = plugin(*args, **kwds)
     return started
+
+def find_plugins(import_path, recursive=False):
+    """Find all plugins below an import path."""
+    for module_path in find_modules(import_path, recursive=recursive):
+        module = import_string(module_path)
+        for plugin in inspect.getmembers(
+                module, lambda a: isinstance(a, Plugin)):
+            yield plugin
+

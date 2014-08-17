@@ -199,3 +199,9 @@ class HTTPException(Exception):
 
 class BadRequest(HTTPException):
     status = 400
+
+class InternalServerError(HTTPException):
+    status = 502
+
+class BadGateway(HTTPException):
+    status = 502

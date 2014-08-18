@@ -3,6 +3,7 @@ import functools
 import inspect
 import json
 
+from werkzeug.exceptions import HTTPException
 from werkzeug.routing import Map, Rule, Submount
 from werkzeug.utils import ArgumentValidationError, validate_arguments
 from werkzeug.wsgi import responder
@@ -62,6 +63,8 @@ class JSONResponse(Response):
     """
     def __init__(self, result, encoder=None, **kwds):
         super(JSONResponse, self).__init__(**kwds)
+        if result is None:
+            return
         if encoder is None:
             encoder = Encoder()
         self.response = encoder.iterencode(result)
@@ -96,7 +99,8 @@ class Endpoint:
     b'{"message": "...", "status": 500}'
     """
     def __init__(self, string, f, encoder=None, **kwds):
-        self.rule = Rule(string, endpoint=self, **kwds)
+        self.rule_string = string
+        self.rule_kwds = kwds
         self.f = f
         self.encoder = encoder
         functools.update_wrapper(self, f)
@@ -105,7 +109,12 @@ class Endpoint:
         """Call the wrapped function normally."""
         return self.f(*args, **kwds)
 
-    def dispatch(self, kwds):
+    def rule(self, *args, **kwds):
+        return Rule(self.rule_string,
+                    endpoint=functools.partial(self.dispatch, *args, **kwds),
+                    **self.rule_kwds)
+
+    def dispatch(self, *url_args, **url_kwds):
         """Dispatch a request and pass URL arguments to the wrapped
         function. Any JSON object in the request body is passed as
         well if parsed correctly. Returns a WSGI application.
@@ -113,32 +122,28 @@ class Endpoint:
         @responder
         def app(environ, start_reponse):
             status = None
+            exception = None
             try:
-                result = self._marshal(JSONRequest(environ), kwds)
+                args, kwds = url_args, url_kwds
+                body = JSONRequest(environ).json()
+                if body:
+                    kwds.update(body)
+                args, kwds = validate_arguments(self.f, args, kwds)
+                result = self.f(*args, **kwds)
+            except HTTPException as e:
+                exception = e
+                status = e.status
             except Exception as e:
-                try:
-                    status = e.status
-                except AttributeError:
-                    status = 500 # Internal server error
+                exception = e
+                status = 500 # Internal server error
+
+            if exception:
                 result = {
                     'status': status,
                     'message': str(e)
                 }
             return JSONResponse(result, encoder=self.encoder, status=status)
         return app
-
-    def _marshal(self, request, kwds):
-        try:
-            body = request.json()
-            if isinstance(body, dict):
-                kwds.update(body)
-        except ValueError:
-            pass
-        try:
-            args, kwds = validate_arguments(self.f, (), kwds)
-        except ArgumentValidationError as e:
-            raise BadRequest(e)
-        return self.f(*args, **kwds)
 
 def endpoint(string, **kwds):
     return functools.partial(Endpoint, string, **kwds)
@@ -181,7 +186,7 @@ class Dispatcher(object):
         self.delegates = delegates
         self.url_map = Map([
             Submount('/' + name, [
-                f.rule for _, f in inspect.getmembers(
+                f.rule(delegate) for _, f in inspect.getmembers(
                     delegate, lambda f: isinstance(f, Endpoint)
                 )
             ])
@@ -192,16 +197,5 @@ class Dispatcher(object):
     def __call__(self, environ, start_reponse):
         """Respond to a request."""
         urls = self.url_map.bind_to_environ(environ)
-        return urls.dispatch(lambda f, kwds: f.dispatch(kwds))
-
-class HTTPException(Exception):
-    status = 400
-
-class BadRequest(HTTPException):
-    status = 400
-
-class InternalServerError(HTTPException):
-    status = 502
-
-class BadGateway(HTTPException):
-    status = 502
+        return urls.dispatch(lambda f, kwds: f(**kwds),
+                             catch_http_exceptions=True)

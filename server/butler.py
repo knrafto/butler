@@ -9,7 +9,7 @@ import gevent
 import gevent.wsgi
 
 from endpoint import Dispatcher
-import plugins
+from plugin import find_plugins, start_plugins
 
 default_config_path = \
     os.path.expanduser(os.path.join('~', '.config', 'butler', 'butler.cfg'))
@@ -23,14 +23,15 @@ def load_config(path):
         print(e, file=sys.stderr)
     return config
 
-def create_server(config, address='127.0.0.1:80'):
-    delegates = plugins.start(config)
-    return gevent.wsgi.WSGIServer(address, Dispatcher(delegates))
-
 def serve(config_path):
     config = load_config(config_path)
-    kwds = config.get('server', {})
-    server = create_server(config, **kwds)
+    try:
+        address = config['server']['address']
+    except KeyError:
+        address = '127.0.0.1:80'
+    plugins = find_plugins('plugins')
+    delegates = start_plugins(plugins, config)
+    server = gevent.wsgi.WSGIServer(address, Dispatcher(delegates))
 
     try:
         server.serve_forever()

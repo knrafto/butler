@@ -1,9 +1,7 @@
 """Plugins and dependency injection."""
 import inspect
 
-from werkzeug.utils import (
-    ArgumentValidationError,
-    find_modules, import_string, validate_arguments)
+from werkzeug.utils import find_modules, import_string
 
 class Plugin(object):
     """Plugin base class.
@@ -51,7 +49,7 @@ def topsort(G):
         raise ValueError('Cyclic dependencies')
     return S
 
-def inject(plugins, config):
+def start_plugins(plugins, config):
     """Create a list of plugins. Returns a dictionary of plugin names
     and the created objects. Config should be a dictionary of plugin
     name to configuration options.
@@ -72,7 +70,7 @@ def inject(plugins, config):
     ...         self.foo = spam.foo
     ...         self.bar = kwds['bar']
     ...
-    >>> plugins = inject([Spam, Eggs], config)
+    >>> plugins = start_plugins([Spam, Eggs], config)
     >>> plugins['spam'].foo
     1
     >>> plugins['eggs'].foo
@@ -85,9 +83,8 @@ def inject(plugins, config):
     started = {}
     for name in reversed(topsort(graph)):
         plugin = plugins[name]
-        args = (started[dep] for dep in plugin.depends)
+        args = [started[dep] for dep in plugin.depends]
         kwds = config.get(name, {})
-        args, kwds = validate_arguments(plugin, args, kwds, drop_extra=False)
         started[name] = plugin(*args, **kwds)
     return started
 
@@ -95,7 +92,8 @@ def find_plugins(import_path, recursive=False):
     """Find all plugins below an import path."""
     for module_path in find_modules(import_path, recursive=recursive):
         module = import_string(module_path)
-        for plugin in inspect.getmembers(
-                module, lambda a: isinstance(a, Plugin)):
+        for _, plugin in inspect.getmembers(
+                module,
+                lambda a: inspect.isclass(a) and issubclass(a, Plugin)):
             yield plugin
 

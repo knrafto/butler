@@ -7,13 +7,20 @@ import gevent
 import gevent.event
 import Queue
 import spotify
-from werkzeug.exceptions import (
-    BadGateway, BadRequest, HTTPException, Unauthorized)
-from werkzeug.wrappers import Response
 
-from endpoint import route
+import counter
+from endpoint import endpoint
+import plugin
 
-class TrackSet(object):
+class Track:
+    """A single instance of a track."""
+    def __init__(self, track):
+        self.data = track
+
+    def json(self):
+        return self.data.link.uri
+
+class TrackSet:
     """A set of tracks to be played."""
     target = None
     tracks = []
@@ -37,72 +44,22 @@ class TrackSet(object):
         except IndexError:
             raise StopIteration
 
-    def encode(self):
+    def json(self):
         """Return a dictionary representation."""
         return {
             'target': self.target,
             'tracks': self.tracks
         }
 
-class DictEncoder(json.JSONEncoder):
-    """An encoder that uses a list of properties to serialize an
-    object. Takes a dictionary of type: properties.
-
-    >>> class Spam(object):
-    ...     def __init__(self, eggs):
-    ...         self.eggs = eggs
-    ...     @property
-    ...     def knights(self): return Knight()
-    ...
-    >>> class Knight(object):
-    ...     pass
-    ...
-    >>> encoder = DictEncoder({
-    ...     Spam: lambda obj: {
-    ...         'eggs': obj.eggs,
-    ...         'knights': obj.knights
-    ...     },
-    ...     Knight: lambda obj: "ni"
-    ... })
-    ...
-    >>> encoder.encode(Spam('eggs'))
-    '{"knights": "ni", "eggs": "eggs"}'
-    """
-    def __init__(self, encoders):
-        super(DictEncoder, self).__init__()
-        self.encoders = encoders
-
-    def default(self, obj):
-        try:
-            encoder = self.encoders[type(obj)]
-        except KeyError:
-            return super(DictEncoder, self).default(obj)
-        return encoder(obj)
-
-def to_uri(resource):
-    return resource.link.uri
-
-encoder = DictEncoder({
-    TrackSet: lambda obj: obj.encode(),
-    spotify.Track: to_uri,
-    spotify.Album: to_uri,
-    spotify.Artist: to_uri,
-    spotify.Playlist: to_uri,
-})
-
-def encode(obj):
-    """Encode an object as a Response."""
-    return Response(encoder.iterencode(obj), content_type='application/json')
-
-class Spotify(object):
+class Spotify(plugin.Plugin):
     """Spotify plugin.
 
     This plugin can play tracks and playlists in a queue, and can
     search Spotify.
     """
-    plugin_name = 'spotify'
+    name = 'spotify'
 
-    def __init__(self, cachedir=None, datadir=None, keyfile=None, timeout=30, **kwds):
+    def __init__(self, cachedir=None, datadir=None, keyfile=None, timeout=30):
         config = spotify.Config()
         if cachedir:
             config.cache_location = os.path.expanduser(cachedir)
@@ -138,7 +95,7 @@ class Spotify(object):
         self._history = []
         self._queue = []
 
-        self._player_state_changed = gevent.event.Event()
+        self._state_counter = counter.Counter()
 
         # Relogin
         self._session.relogin()
@@ -162,21 +119,11 @@ class Spotify(object):
         """Notify the main thread to process events."""
         self._pending.put(1)
 
-    def _pause(self, *args):
-        """Pause playback."""
-        self._playing = False
-        self._session.player.pause()
-
-    def _end_of_track(self, session):
-        """Play the next track."""
-        self.next_track(None)
-
     def _guard(self):
         """Ensure the user is logged in."""
         if self._session.connection.state not in (
-            spotify.ConnectionState.LOGGED_IN,
-            spotify.ConnectionState.OFFLINE
-        ):
+                spotify.ConnectionState.LOGGED_IN,
+                spotify.ConnectionState.OFFLINE):
             raise Unauthorized()
 
     def _timeout_context(self):
@@ -245,27 +192,24 @@ class Spotify(object):
         else:
             raise TypeError("Cannot load tracks from '%s' object"
                 % type(resource).__name__)
-        return [self._load(track) for track in tracks]
+        return [Track(self._load(track)) for track in tracks]
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
-        lineup = [
-            track
-                for track_set in self._queue
-                for track in track_set.tracks
-        ]
+        lineup = [track for track_set in self._queue
+            for track in track_set.tracks]
 
         try:
             track = lineup[0]
         except IndexError:
-            self._current_track = None
-            self._session.player.unload()
-            self._playing = False
-        else:
-            self._current_track = track
-            self._session.player.load(track)
+            track = None
+        if track:
+            self._session.player.load(track.data)
             self._playing = True
             self._session.player.play()
+        else:
+            self._session.player.unload()
+            self._playing = False
 
         try:
             next_track = lineup[1]
@@ -274,18 +218,22 @@ class Spotify(object):
         else:
             self._session.player.prefetch(next_track)
 
-        self._player_state_changed.set()
-        self._player_state_changed = gevent.event.Event()
+        self._current_track = track
+        self._state_counter.inc()
+
+    def _pause(self, *args):
+        """Pause playback."""
+        self._playing = False
+        self._session.player.pause()
+
+    def _end_of_track(self, session):
+        """Play the next track."""
+        self.next_track()
 
     def _insert(self, track_set, where='start'):
         """Insert a track set at a position."""
         prev_head = self._queue[0] if self._queue else None
 
-        if where is None:
-            where = 'start'
-
-        if isinstance(where, int):
-            self._queue.insert(where, track_set)
         if where == 'start':
             self._queue[0:1] = [track_set]
         elif where == 'next':
@@ -300,24 +248,24 @@ class Spotify(object):
         elif when == 'end':
             self._queue.append(track_set)
         else:
-            raise ValueError('Unknown ')
+            self._queue.insert(int(where), track_set)
 
         head = self._queue[0] if self._queue else None
         if head is not prev_head:
             self._sync_player()
 
-    @route('/login/', methods=['POST'])
-    def login(self, request):
+    @endpoint('/login/', methods=['POST'])
+    def login(self, username=None, password=None):
         """Log in to Spotify."""
-        username = request.form.get('username', '')
-        password = request.form.get('password', '')
+        if not username or not password:
+            raise ValueError('Username and password required to log in')
         result = gevent.event.AsyncResult()
 
         def logged_in(session, error_type):
             try:
                 spotify.Error.maybe_raise(error_type)
             except spotify.LibError as e:
-                result.set_exception(BadRequest(str(e)))
+                result.set_exception(e)
             else:
                 result.set(None)
             return False
@@ -328,8 +276,8 @@ class Spotify(object):
         with self._timeout_context():
             result.get()
 
-    @route('/connection/')
-    def connection(self, request):
+    @endpoint('/connection/')
+    def connection(self):
         """Return the connection state."""
         states = [
             'Logged out',
@@ -338,33 +286,27 @@ class Spotify(object):
             'Undefined',
             'Offline'
         ]
-        return encode({
+        return {
             'result': states[self._session.connection.state]
-        })
+        }
 
-    @route('/state/')
-    def player_state(self, request):
+    @endpoint('/state/')
+    def player_state(self, value=None):
         """Return the current player state."""
-        return encode({
+        value = self._state_counter.wait(value)
+        return {
             'paused': not self._playing,
             'current_track': self._current_track,
             'history': self._history,
-            'queue': self._queue
-        })
+            'queue': self._queue,
+            'state': value
+        }
 
-    @route('/state/push/')
-    def push_player_state(self, request):
-        """Block until the track changes."""
-        self._player_state_changed.wait()
-        return self.player_state(request)
-
-    @route('/next_track/', methods=["POST"])
-    def next_track(self, request):
+    @endpoint('/next_track/', methods=["POST"])
+    def next_track(self):
         """Load and play the next track."""
         self._guard()
-        while True:
-            if not self._queue:
-                break
+        while self._queue:
             try:
                 self._queue[0].next()
             except StopIteration:
@@ -375,10 +317,9 @@ class Spotify(object):
         if self._current_track:
             self._history.insert(0, self._current_track)
         self._sync_player()
-        return Response()
 
-    @route('/prev_track/', methods=["POST"])
-    def prev_track(self, request):
+    @endpoint('/prev_track/', methods=["POST"])
+    def prev_track(self):
         """Load and play the previous track."""
         self._guard()
         try:
@@ -386,12 +327,11 @@ class Spotify(object):
         except IndexError:
             pass
         else:
-            self._queue.insert(0, TrackSet(track))
+            self._queue.insert(0, TrackSet(track, [track]))
             self._sync_player()
-        return Response()
 
-    @route('/next_set/', methods=["POST"])
-    def next_set(self, request):
+    @endpoint('/next_set/', methods=["POST"])
+    def next_set(self):
         """Load and play the next track set."""
         self._guard()
         try:
@@ -400,30 +340,26 @@ class Spotify(object):
             pass
         else:
             self._sync_player()
-        return Response()
 
-    @route('/playback/', methods=["POST"])
-    def play(self, request):
+    @endpoint('/playback/', methods=["POST"])
+    def play(self, pause=False, seek=None):
         """Resume spotify playback.
 
         Parameters:
             pause: If present, pause playback
             seek: Seek position, in milliseconds
         """
-        pause = 'pause' in request.form
-        ms = request.form.get('seek', type=int)
-        if ms:
-            self._session.player.seek(ms)
-        if not pause and self._current_track:
+        if seek is not None:
+            self._session.player.seek(seek)
+        if pause and self._current_track:
             self._playing = True
             self._session.player.play()
         elif pause:
             self._playing = False
             self._session.player.pause()
-        return Response()
 
-    @route('/add/', methods=["POST"])
-    def add(self, request):
+    @endpoint('/add/', methods=["POST"])
+    def add(self, uri, where='start', shuffle=False):
         """Add a track or set from a link.
 
         Parameters:
@@ -433,17 +369,8 @@ class Spotify(object):
             shuffle: shuffle songs
         """
         self._guard()
-        uri = request.form.get('uri') or request.form.get('url')
-        when = request.form.get('where')
-        shuffle = request.form.has_key('shuffle')
-        try:
-            with self._timeout_context():
-                resource = self._fetch(uri)
-                tracks = self._load_tracks(resource)
-                track_set = TrackSet(resource, tracks, shuffle=shuffle)
-            self._insert(track_set, when)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise BadRequest(str(e))
-        return Response()
+        with self._timeout_context():
+            resource = self._fetch(uri)
+            tracks = self._load_tracks(resource)
+            track_set = TrackSet(resource, tracks, shuffle=shuffle)
+        self._insert(track_set, when)

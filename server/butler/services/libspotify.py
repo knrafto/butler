@@ -7,6 +7,7 @@ import gevent
 import gevent.event
 import Queue
 import spotify
+from werkzeug.exceptions import BadGateway, Unauthorized
 
 import counter
 from endpoint import endpoint
@@ -359,7 +360,7 @@ class Spotify(plugin.Plugin):
             self._session.player.pause()
 
     @endpoint('/add/', methods=["POST"])
-    def add(self, uri, where='start', shuffle=False):
+    def add(self, uri='', where='start', shuffle=False):
         """Add a track or set from a link.
 
         Parameters:

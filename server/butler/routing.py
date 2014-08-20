@@ -25,17 +25,18 @@ defaultEncoder = DefaultEncoder()
 class JSONRequest(Request):
     max_content_length = 1024 * 1024 # 1MB
 
-    def json(self, decoder=None):
+    def json(self):
         if self.headers.get('content-type') == 'application/json':
             return json.loads(self.get_data(as_text=True))
 
 class JSONResponse(Response):
-    def __init__(self, result, encoder=None, **kwds):
+    def __init__(self, result=None, **kwds):
         super(JSONResponse, self).__init__(**kwds)
-        self.response = defaultEncoder.iterencode(result)
-        self.content_type = 'application/json'
+        if result is not None:
+            self.response = defaultEncoder.iterencode(result)
+            self.content_type = 'application/json'
 
-def route(string, **options):
+def endpoint(string, **options):
     def decorator(f):
         f._route = Rule(string, **options)
         return f
@@ -61,14 +62,16 @@ class Dispatcher(object):
             yield rule
 
     def _dispatch(self, f, request, kwds):
-
         status = None
         try:
+            body = None
             try:
                 body = request.json()
-            except ValueError:
+            except (TypeError, ValueError):
                 raise BadRequest
-            result = f(body, **kwds)
+            if body:
+                kwds.update(body)
+            result = f(**kwds)
         except HTTPException as e:
             status = e.code
             result = {

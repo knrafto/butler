@@ -5,8 +5,9 @@ from werkzeug.exceptions import Unauthorized
 from werkzeug.test import Client, EnvironBuilder
 from werkzeug.wrappers import Response
 
-from butler.routing import route
 from butler import routing
+from butler.options import Options
+from butler.routing import endpoint
 
 class RoutingTestCase(unittest.TestCase):
     def test_request(self):
@@ -44,22 +45,26 @@ class RoutingTestCase(unittest.TestCase):
         })
         self.assertEqual(response.content_type, 'application/json')
 
+        response = routing.JSONResponse()
+        self.assertEqual(response.get_data(), '')
+
     def test_dispatcher(self):
         class Spam(object):
             def __init__(self, baz):
                 self.baz = baz
 
-            @route('/<int:x>/', methods=['POST'])
-            def foo(self, request, x=0):
+            @endpoint('/<int:x>/', methods=['POST'])
+            def foo(self, **kwds):
+                options = Options(kwds)
                 return {
-                    'foo': x,
-                    'bar': request['bar'],
+                    'foo': options.int('x'),
+                    'bar': options.str('bar'),
                     'baz': self.baz
                 }
 
         class Eggs(object):
-            @route('/')
-            def bar(self, request):
+            @endpoint('/')
+            def bar(self, **kwds):
                 raise Unauthorized('unauthorized')
 
         dispatcher = routing.Dispatcher({

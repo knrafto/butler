@@ -1,5 +1,3 @@
-import os
-
 class Options(dict):
     def __init__(self, value=None):
         if not isinstance(value, dict):
@@ -32,11 +30,3 @@ class Options(dict):
 
     def bool(self, key, default=False):
         return self.get(key, default, bool)
-
-    def path(self, key, default=None):
-        def convert(value):
-            if isinstance(value, str):
-                return os.path.expanduser(value)
-            else:
-                raise ValueError
-        return self.get(key, default, convert)

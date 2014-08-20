@@ -88,11 +88,3 @@ class OptionsTestCase(unittest.TestCase):
         self.assertEqual(options.bool('foo'), False)
         self.assertEqual(options.bool('bar'), True)
         self.assertEqual(options.bool('baz'), False)
-
-    def test_path(self):
-        options = Options({
-            'foo': 42,
-            'bar': '~/tmp'
-        })
-        self.assertEqual(options.path('foo'), None)
-        self.assertEqual(options.path('bar'), os.path.expanduser('~/tmp'))\

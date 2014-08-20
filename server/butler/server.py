@@ -25,7 +25,7 @@ def load_config(path):
 def serve(config_path):
     options = load_config(config_path)
     services = list(service.find_all('butler.services'))
-    services.append(service.static('config', options))
+    services.append(service.static('options', options))
     delegates = service.start(services)
     address = options.options('server').str('address', '127.0.0.1:8000')
     server = gevent.wsgi.WSGIServer(address, Dispatcher(delegates))

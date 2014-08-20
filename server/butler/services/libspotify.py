@@ -28,6 +28,9 @@ class Track:
     def __init__(self, track):
         self.data = track
 
+    def singleton(self):
+        return TrackSet(self.data, [self])
+
     def json(self):
         return self.data.link.uri
 
@@ -58,7 +61,7 @@ class TrackSet:
     def json(self):
         """Return a dictionary representation."""
         return {
-            'target': self.target,
+            'target': self.target.link.uri,
             'tracks': self.tracks
         }
 
@@ -75,22 +78,21 @@ class Spotify(object):
     def __init__(self, options):
         options = options.options(self.name)
 
-        cachedir = options.path('cachedir')
-        datadir = options.path('datadir')
-        keyfile = options.path('keyfile')
+        cachedir = options.str('cachedir')
+        datadir = options.str('datadir')
+        keyfile = options.str('keyfile')
         self._timeout = options.number('timeout')
 
         config = spotify.Config()
         if cachedir:
             config.cache_location = os.path.expanduser(cachedir)
         if datadir:
-            config.settings_location = os.path.expanduser(datadir)
+            datadir = os.path.expanduser(datadir)
+            if not os.path.exists(datadir):
+                os.makedirs(datadir)
+            config.settings_location = datadir
         if keyfile:
             config.load_application_key_file(os.path.expanduser(keyfile))
-
-        if config.settings_location and \
-                not os.path.exists(config.settings_location):
-            os.makedirs(config.settings_location)
 
         self._session = spotify.Session(config)
 
@@ -242,8 +244,7 @@ class Spotify(object):
 
     def _pause(self, *args):
         """Pause playback."""
-        self._playing = False
-        self._session.player.pause()
+        self.play(pause=False)
 
     def _end_of_track(self, session):
         """Play the next track."""
@@ -299,7 +300,6 @@ class Spotify(object):
             result.get()
 
     @endpoint('/connection/')
-    @translate_spotify_error
     def connection(self, **kwds):
         """Return the connection state."""
         states = [
@@ -314,7 +314,6 @@ class Spotify(object):
         }
 
     @endpoint('/state/')
-    @translate_spotify_error
     def player_state(self, **kwds):
         """Return the current player state."""
         value = Options(kwds).int('value', None)
@@ -354,7 +353,7 @@ class Spotify(object):
         except IndexError:
             pass
         else:
-            self._queue.insert(0, TrackSet(track, [track]))
+            self._queue.insert(0, track.singleton())
             self._sync_player()
 
     @endpoint('/next_set/', methods=["POST"])
@@ -367,9 +366,11 @@ class Spotify(object):
         except IndexError:
             pass
         else:
+            if self._current_track:
+                self._history.insert(0, self._current_track)
             self._sync_player()
 
-    @endpoint('/playback/', methods=["POST"])
+    @endpoint('/play/', methods=["POST"])
     @translate_spotify_error
     def play(self, **kwds):
         """Resume spotify playback.
@@ -378,6 +379,7 @@ class Spotify(object):
             pause: If present, pause playback
             seek: Seek position, in milliseconds
         """
+        self._guard()
         options = Options(kwds)
         seek = options.int('seek', None)
         pause = options.bool('pause')

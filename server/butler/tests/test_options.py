@@ -80,6 +80,15 @@ class OptionsTestCase(unittest.TestCase):
         self.assertEqual(options.str('baz', 'spam'), 'spam')
         self.assertEqual(options.str('baz'), '')
 
+    def test_str(self):
+        options = Options({
+            'foo': False,
+            'bar': 'blub'
+        })
+        self.assertEqual(options.bool('foo'), False)
+        self.assertEqual(options.bool('bar'), True)
+        self.assertEqual(options.bool('baz'), False)
+
     def test_path(self):
         options = Options({
             'foo': 42,

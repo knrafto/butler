@@ -30,6 +30,9 @@ class Options(dict):
     def str(self, key, default=''):
         return self.get(key, default, str)
 
+    def bool(self, key, default=False):
+        return self.get(key, default, bool)
+
     def path(self, key, default=None):
         def convert(value):
             if isinstance(value, str):

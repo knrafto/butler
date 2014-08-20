@@ -1,4 +1,4 @@
-import json
+import functools
 import os
 import random
 import traceback
@@ -9,9 +9,19 @@ import Queue
 import spotify
 from werkzeug.exceptions import BadGateway, Unauthorized
 
-import counter
-from endpoint import endpoint
-import plugin
+from butler.options import Options
+from butler.routing import endpoint
+from butler.service import singleton
+from butler.utils import Counter
+
+def translate_spotify_error(f):
+    @functools.wraps(f)
+    def decorator(*args, **kwds):
+        try:
+            return f(*args, **kwds)
+        except spotify.LibError as e:
+            raise # TODO
+    return decorator
 
 class Track:
     """A single instance of a track."""
@@ -52,15 +62,24 @@ class TrackSet:
             'tracks': self.tracks
         }
 
-class Spotify(plugin.Plugin):
+@singleton
+class Spotify(object):
     """Spotify plugin.
 
     This plugin can play tracks and playlists in a queue, and can
     search Spotify.
     """
     name = 'spotify'
+    depends = ['options']
 
-    def __init__(self, cachedir=None, datadir=None, keyfile=None, timeout=30):
+    def __init__(self, options):
+        options = options.options(self.name)
+
+        cachedir = options.path('cachedir')
+        datadir = options.path('datadir')
+        keyfile = options.path('keyfile')
+        self._timeout = options.number('timeout')
+
         config = spotify.Config()
         if cachedir:
             config.cache_location = os.path.expanduser(cachedir)
@@ -69,7 +88,8 @@ class Spotify(plugin.Plugin):
         if keyfile:
             config.load_application_key_file(os.path.expanduser(keyfile))
 
-        if not os.path.exists(config.settings_location):
+        if config.settings_location and \
+                not os.path.exists(config.settings_location):
             os.makedirs(config.settings_location)
 
         self._session = spotify.Session(config)
@@ -88,15 +108,13 @@ class Spotify(plugin.Plugin):
         self._session.on(spotify.SessionEvent.PLAY_TOKEN_LOST, self._pause)
         self._session.on(spotify.SessionEvent.END_OF_TRACK, self._end_of_track)
 
-        self._timeout = timeout
-
         # Playback
         self._playing = False
         self._current_track = None
         self._history = []
         self._queue = []
 
-        self._state_counter = counter.Counter()
+        self._state_counter = Counter()
 
         # Relogin
         self._session.relogin()
@@ -217,10 +235,10 @@ class Spotify(plugin.Plugin):
         except IndexError:
             pass
         else:
-            self._session.player.prefetch(next_track)
+            self._session.player.prefetch(next_track.data)
 
         self._current_track = track
-        self._state_counter.inc()
+        self._state_counter.set()
 
     def _pause(self, *args):
         """Pause playback."""
@@ -235,7 +253,9 @@ class Spotify(plugin.Plugin):
         """Insert a track set at a position."""
         prev_head = self._queue[0] if self._queue else None
 
-        if where == 'start':
+        if isinstance(where, int):
+            self._queue.insert(where, track_set)
+        elif where == 'start':
             self._queue[0:1] = [track_set]
         elif where == 'next':
             self._queue.insert(1, track_set)
@@ -246,20 +266,21 @@ class Spotify(plugin.Plugin):
                 -1
             )
             self._queue.insert(index, track_set)
-        elif when == 'end':
+        elif where == 'end':
             self._queue.append(track_set)
-        else:
-            self._queue.insert(int(where), track_set)
 
         head = self._queue[0] if self._queue else None
         if head is not prev_head:
             self._sync_player()
 
     @endpoint('/login/', methods=['POST'])
-    def login(self, username=None, password=None):
+    @translate_spotify_error
+    def login(self, **kwds):
         """Log in to Spotify."""
-        if not username or not password:
-            raise ValueError('Username and password required to log in')
+        options = Options(kwds)
+        username = options.str('username')
+        password = options.str('password')
+
         result = gevent.event.AsyncResult()
 
         def logged_in(session, error_type):
@@ -278,7 +299,8 @@ class Spotify(plugin.Plugin):
             result.get()
 
     @endpoint('/connection/')
-    def connection(self):
+    @translate_spotify_error
+    def connection(self, **kwds):
         """Return the connection state."""
         states = [
             'Logged out',
@@ -292,8 +314,10 @@ class Spotify(plugin.Plugin):
         }
 
     @endpoint('/state/')
-    def player_state(self, value=None):
+    @translate_spotify_error
+    def player_state(self, **kwds):
         """Return the current player state."""
+        value = Options(kwds).int('value', None)
         value = self._state_counter.wait(value)
         return {
             'paused': not self._playing,
@@ -304,7 +328,8 @@ class Spotify(plugin.Plugin):
         }
 
     @endpoint('/next_track/', methods=["POST"])
-    def next_track(self):
+    @translate_spotify_error
+    def next_track(self, **kwds):
         """Load and play the next track."""
         self._guard()
         while self._queue:
@@ -320,7 +345,8 @@ class Spotify(plugin.Plugin):
         self._sync_player()
 
     @endpoint('/prev_track/', methods=["POST"])
-    def prev_track(self):
+    @translate_spotify_error
+    def prev_track(self, **kwds):
         """Load and play the previous track."""
         self._guard()
         try:
@@ -332,7 +358,8 @@ class Spotify(plugin.Plugin):
             self._sync_player()
 
     @endpoint('/next_set/', methods=["POST"])
-    def next_set(self):
+    @translate_spotify_error
+    def next_set(self, **kwds):
         """Load and play the next track set."""
         self._guard()
         try:
@@ -343,13 +370,17 @@ class Spotify(plugin.Plugin):
             self._sync_player()
 
     @endpoint('/playback/', methods=["POST"])
-    def play(self, pause=False, seek=None):
+    @translate_spotify_error
+    def play(self, **kwds):
         """Resume spotify playback.
 
         Parameters:
             pause: If present, pause playback
             seek: Seek position, in milliseconds
         """
+        options = Options(kwds)
+        seek = options.int('seek', None)
+        pause = options.bool('pause')
         if seek is not None:
             self._session.player.seek(seek)
         if pause and self._current_track:
@@ -360,7 +391,8 @@ class Spotify(plugin.Plugin):
             self._session.player.pause()
 
     @endpoint('/add/', methods=["POST"])
-    def add(self, uri='', where='start', shuffle=False):
+    @translate_spotify_error
+    def add(self, **kwds):
         """Add a track or set from a link.
 
         Parameters:
@@ -370,8 +402,14 @@ class Spotify(plugin.Plugin):
             shuffle: shuffle songs
         """
         self._guard()
+        options = Options(kwds)
+        uri = options.str('uri') or options.str('url')
+        where = options.str('where') or options.int('where')
+        shuffle = options.bool('shuffle')
+        if not uri:
+            pass # TODO
         with self._timeout_context():
             resource = self._fetch(uri)
             tracks = self._load_tracks(resource)
             track_set = TrackSet(resource, tracks, shuffle=shuffle)
-        self._insert(track_set, when)
+        self._insert(track_set, where)

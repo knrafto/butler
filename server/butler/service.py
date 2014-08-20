@@ -23,6 +23,9 @@ class Service(object):
         self.depends = depends
         self.init = init
 
+    def __call__(self, *args, **kwds):
+        return self.init(*args, **kwds)
+
     def create(self, services):
         """Instantiate a service, using the dictionary to resolve
         dependencies.

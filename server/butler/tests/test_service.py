@@ -13,6 +13,11 @@ class ServiceTestCase(unittest.TestCase):
         }
         self.assertEqual(foo.create(created), "spam and eggs")
 
+    def test_call(self):
+        foo = service.Service('foo', ('bar', 'baz'),
+            lambda bar, baz: "%s and %s" % (bar, baz))
+        self.assertEqual(foo('spam', 'eggs'), "spam and eggs")
+
     def test_str_repr(self):
         foo = service.Service('foo', ('bar', 'baz'),
             lambda bar, baz: "%s and %s" % (bar, baz))

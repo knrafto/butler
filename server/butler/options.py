@@ -1,8 +1,9 @@
 class Options(dict):
     def __init__(self, value=None):
-        if not isinstance(value, dict):
-            value = {}
-        super(Options, self).__init__(value)
+        try:
+            super(Options, self).__init__(value)
+        except Exception:
+            super(Options, self).__init__()
 
     def get(self, key, default=None, type=None):
         try:

@@ -58,7 +58,7 @@ def singleton(cls):
 
 def topsort(G):
     """Sort a graph in dependency order."""
-    count = collections.defaultdict(int)
+    count = collections.Counter()
     for u in G:
         for v in G[u]:
             count[v] += 1

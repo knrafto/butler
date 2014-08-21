@@ -64,13 +64,16 @@ class Dispatcher(object):
     def _dispatch(self, f, request, kwds):
         status = None
         try:
-            body = None
-            try:
-                body = request.json()
-            except (TypeError, ValueError):
-                raise BadRequest
-            if body:
-                kwds.update(body)
+            args = None
+            if request.method == 'GET':
+                args = request.args.to_dict()
+            elif request.method == 'POST':
+                try:
+                    args = request.json()
+                except (TypeError, ValueError):
+                    raise BadRequest
+            if args:
+                kwds.update(args)
             result = f(**kwds)
         except HTTPException as e:
             status = e.code

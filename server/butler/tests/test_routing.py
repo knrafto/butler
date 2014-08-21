@@ -53,7 +53,7 @@ class RoutingTestCase(unittest.TestCase):
             def __init__(self, baz):
                 self.baz = baz
 
-            @endpoint('/<int:x>/', methods=['POST'])
+            @endpoint('/<int:x>/', methods=['GET', 'POST'])
             def foo(self, **kwds):
                 options = Options(kwds)
                 return {
@@ -77,15 +77,22 @@ class RoutingTestCase(unittest.TestCase):
             '/spam/42/',
             data='{"bar": "blub"}',
             content_type='application/json')
-        response_data = json.loads(response.get_data(as_text=True))
+        response_data = json.loads(response.get_data())
         self.assertEqual(response_data, {
             'foo': 42,
             'bar': 'blub',
             'baz': 'ni'
         })
 
+        response = c.get('/spam/42/', query_string='bar=blub')
+        response_data = json.loads(response.get_data())
+        self.assertEqual(response_data, {
+            'foo': 42,
+            'bar': 'blub',
+            'baz': 'ni'
+        })
         response = c.get('/eggs/')
-        response_data = json.loads(response.get_data(as_text=True))
+        response_data = json.loads(response.get_data())
         self.assertEqual(response_data, {
             'status': 401,
             'message': 'unauthorized'

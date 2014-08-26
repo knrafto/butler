@@ -62,14 +62,6 @@ class OptionsTestCase(unittest.TestCase):
         self.assertEqual(options.float('foo'), 42.0)
         self.assertEqual(options.float('bar'), 0.0)
 
-    def test_number(self):
-        options = Options({
-            'foo': '42',
-            'bar': '43.5'
-        })
-        self.assertEqual(options.number('foo'), 42)
-        self.assertEqual(options.number('bar'), 43.5)
-
     def test_str(self):
         options = Options({
             'foo': '42',

@@ -3,7 +3,7 @@ from __future__ import print_function
 import gevent
 import gevent.event
 
-class Counter:
+class Counter(object):
     """Create a counter with an initial value. If not specified, the
     value defaults to 0.
     """
@@ -33,3 +33,30 @@ class Counter:
                 while self.value <= value:
                     self._event.wait()
         return self.value
+
+class Queue(list):
+    """Create a list with a maximum length."""
+    def __init__(self, iterable=None, size=None):
+        if iterable is None:
+            super(Queue, self).__init__()
+        else:
+            super(Queue, self).__init__(iterable)
+        self.size = size
+
+    def append(self, x):
+        super(Queue, self).append(x)
+        if self.size is not None:
+            while len(self) > self.size:
+                self.pop()
+
+    def extend(self, L):
+        super(Queue, self).extend(L)
+        if self.size is not None:
+            while len(self) > self.size:
+                self.pop()
+
+    def insert(self, i, x):
+        super(Queue, self).insert(i, x)
+        if self.size is not None:
+            while len(self) > self.size:
+                self.pop()

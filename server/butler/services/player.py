@@ -8,7 +8,7 @@ from butler.utils import Counter, Queue
 
 class Metadata(collections.namedtuple(
         'Metadata',
-        'name artist duration url artwork_url source_image_url')):
+        'name artist duration url artwork_url backend')):
     def json(self):
         return self._asdict()
 
@@ -42,7 +42,7 @@ class TrackSet(object):
         if not tracks:
             raise ValueError('empty track set')
         self.metadata = metadata
-        self.tracks = tracks
+        self.tracks = list(tracks)
         if shuffle:
             random.shuffle(self.tracks)
 

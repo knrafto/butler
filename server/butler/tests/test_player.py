@@ -12,7 +12,7 @@ class PlayerTestCase(unittest.TestCase):
         'duration': 1.0,
         'url': 'http://www.foo.org/123',
         'artwork_url': 'http://www.foo.org/123/artwork.jpg',
-        'source_image_url': 'http://www.foo.org/logo.jpg'
+        'backend': 'music'
     }
 
     def _mock_tracks(self, count=10, cls=Track):

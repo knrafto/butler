@@ -157,6 +157,7 @@ class Spotify(object):
     def _fetch_track(self, track):
         self._load(track)
         metadata = Metadata(
+            id=track.link.uri,
             name=track.name,
             artist=self._load(self._load(track.album).artist).name,
             duration=track.duration,
@@ -170,6 +171,7 @@ class Spotify(object):
         duration = sum(track.metadata.duration for track in tracks)
         self._load(album)
         metadata = Metadata(
+            id=album.link.uri,
             name=album.name,
             artist=self._load(album.artist).name,
             duration=duration,
@@ -183,6 +185,7 @@ class Spotify(object):
         duration = sum(track.metadata.duration for track in tracks)
         self._load(artist)
         metadata = Metadata(
+            id=artist.link.uri,
             name=artist.name,
             artist=artist.name,
             duration=duration,
@@ -196,6 +199,7 @@ class Spotify(object):
         tracks = map(self._fetch_tracks, playlist.tracks)
         duration = sum(track.metadata.duration for track in tracks)
         metadata = Metadata(
+            id=playlist.link.uri,
             name=playlist.name,
             artist=self._load(playlist.owner).display_name,
             duration=duration,
@@ -273,7 +277,7 @@ class Spotify(object):
         """Add a track or set from a link.
 
         Parameters:
-            uri/url (required): the Spotify uri/url
+            id/uri/url (required): the Spotify uri/url
             index: the index to insert at
             shuffle: shuffle songs
         """
@@ -282,7 +286,7 @@ class Spotify(object):
                 spotify.ConnectionState.OFFLINE):
             raise Unauthorized()
         options = Options(kwds)
-        uri = options.str('uri') or options.str('url')
+        uri = options.str('id') or options.str('uri') or options.str('url')
         index = options.int('index')
         shuffle = options.bool('shuffle')
         if not uri:

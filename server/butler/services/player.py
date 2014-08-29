@@ -8,7 +8,7 @@ from butler.utils import Counter, Queue
 
 class Metadata(collections.namedtuple(
         'Metadata',
-        'name artist duration url artwork_url backend')):
+        'id name artist duration url artwork_url backend')):
     def json(self):
         return self._asdict()
 

@@ -16,6 +16,7 @@ spotify = libspotify.spotify
 class SpotifyTestCase(unittest.TestCase):
     player = mock.Mock(spec=player.Player)
     data = {
+        'id': 'foo'
         'name': 'spam',
         'artist': 'eggs',
         'duration': 1.0,

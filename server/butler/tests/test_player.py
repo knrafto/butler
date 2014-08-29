@@ -7,6 +7,7 @@ from butler.services.player import Metadata, Player, Track, TrackSet
 
 class PlayerTestCase(unittest.TestCase):
     data = {
+        'id': '12345',
         'name': 'spam',
         'artist': 'eggs',
         'duration': 1.0,

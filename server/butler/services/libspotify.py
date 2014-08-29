@@ -1,3 +1,5 @@
+from __future__ import division
+
 import functools
 import os
 import random
@@ -160,7 +162,7 @@ class Spotify(object):
             id=track.link.uri,
             name=track.name,
             artist=self._load(self._load(track.album).artist).name,
-            duration=track.duration,
+            duration=track.duration / 1000,
             url=link_url(track.link),
             artwork_url=link_url(self._load(track.album).cover_link()),
             backend='spotify')

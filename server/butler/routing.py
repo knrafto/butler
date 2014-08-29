@@ -12,6 +12,14 @@ class DefaultEncoder(json.JSONEncoder):
     has a :attribute:json property, it will be used instead of the
     object.
     """
+    def __init__(self, **kwds):
+        defaults = {
+            'indent': 4,
+            'separators': (',', ': ')
+        }
+        defaults.update(kwds)
+        super(DefaultEncoder, self).__init__(**defaults)
+
     def default(self, obj):
         try:
             encode = obj.json

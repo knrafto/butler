@@ -1,8 +1,22 @@
 <ion-view title="Player">
   <ion-nav-buttons side="left">
-    <button menu-toggle="left"class="button button-icon icon ion-navicon"></button>
+    <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
   </ion-nav-buttons>
-  <ion-content class="has-header">
-    <h1>{{content}}<h1>
-  </ion-content>
+  <ion-tabs>
+    <ion-tab title="History">
+      <ion-content>
+        <ion-list>
+          <ion-item ng-repeat="track in history" class="item-thumbnail-left">
+            <img ng-src="{{track.artwork_url}}">
+            <h2>{{track.name}}</h2>
+            <p>{{track.artist}}</p>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-tab>
+    <ion-tab title="Current">
+    </ion-tab>
+    <ion-tab title="Queue">
+    </ion-tab>
+  </ion-tabs>
 </ion-view>

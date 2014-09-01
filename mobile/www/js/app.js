@@ -27,8 +27,7 @@ angular.module('butler', ['ionic', 'poll'])
 
 .controller('PlayerCtrl', function($scope, poll, SERVER_URL) {
   poll(SERVER_URL + '/player/state/', function(data) {
-    $scope.state = data;
-    $scope.content = JSON.stringify(data);
+    $scope.history = data.history;
   });
 });
 

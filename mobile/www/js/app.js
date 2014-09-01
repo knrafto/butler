@@ -1,4 +1,6 @@
-angular.module('butler', ['ionic'])
+angular.module('butler', ['ionic', 'poll'])
+
+.constant('SERVER_URL', 'http://127.0.0.1:26532')
 
 .config(function($stateProvider, $urlRouterProvider) {
   $stateProvider
@@ -12,18 +14,22 @@ angular.module('butler', ['ionic'])
   .state('app.player', {
     url: '/player',
     views: {
-      'menuContent' :{
-        templateUrl: 'templates/player.html'
+      'menuContent': {
+        templateUrl: 'templates/player.html',
+        controller: 'PlayerCtrl'
       }
-    },
-    controller: 'PlayerCtrl'
+    }
   });
 
   // if none of the above states are matched, use this as the fallback
   $urlRouterProvider.otherwise('/app/player');
 })
 
-.controller('PlayerCtrl', function($scope) {
+.controller('PlayerCtrl', function($scope, poll, SERVER_URL) {
+  poll(SERVER_URL + '/player/state/', function(data) {
+    $scope.state = data;
+    $scope.content = JSON.stringify(data);
+  });
 });
 
 angular.module('poll', [])

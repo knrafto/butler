@@ -27,18 +27,13 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(metadata.json(), self.data)
 
         track = Track(Metadata(**self.data))
-        self.assertEqual(track.json(), {
-            'type': 'track',
-            'metadata': metadata,
-        })
+        self.assertEqual(track.json(), self.data)
 
         tracks = list(self._mock_tracks())
         track_set = TrackSet(metadata, tracks)
-        self.assertEqual(track_set.json(), {
-            'type': 'set',
-            'metadata': metadata,
-            'tracks': tracks
-        })
+        set_data = self.data.copy()
+        set_data['tracks'] = tracks
+        self.assertEqual(track_set.json(), set_data)
 
     def test_empty_set(self):
         metadata = Metadata(**self.data)

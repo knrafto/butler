@@ -32,10 +32,7 @@ class Track(object):
         raise NotImplementedError
 
     def json(self):
-        return {
-            'type': 'track',
-            'metadata': self.metadata
-        }
+        return self.metadata.json()
 
 class TrackSet(object):
     def __init__(self, metadata, tracks, shuffle=False):
@@ -56,11 +53,9 @@ class TrackSet(object):
             raise StopIteration
 
     def json(self):
-        return {
-            'type': 'set',
-            'metadata': self.metadata,
-            'tracks': self.tracks
-        }
+        d = self.metadata.json()
+        d['tracks'] = self.tracks
+        return d
 
     @classmethod
     def singleton(cls, track):

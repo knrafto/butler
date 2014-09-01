@@ -3,6 +3,8 @@
   * end of track
   * random errors
   * fetching
+* shuffle Spotify
 
 # mobile
 * angular-mocks in bower.json
+* cordova whitelist

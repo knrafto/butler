@@ -54,7 +54,7 @@ angular.module('poll', [])
         $timeout(loop, 0);
       })
       .error(function(data, status, headers, config) {
-        $log.warn('Error retrieving data from ' + config.url);
+        counter = null;
         $timeout(loop, 5000);
       })
     }());

@@ -33,12 +33,23 @@ describe('poll', function() {
   });
 
   it('should retry on error', function() {
-    httpBackend.whenGET('http://example.com/').respond(500, {});
+    var last_counter = null;
+    var root = httpBackend.whenGET('http://example.com/')
+    root.respond({
+      counter: 2
+    });
+    httpBackend.whenGET('http://example.com/?counter=2').respond(500, {})
     poll('http://example.com/', function(data) {
-      expect(true).toBe(false);
+      last_counter = data.counter;
     });
     httpBackend.flush();
     timeout.flush();
     httpBackend.flush();
+    timeout.flush();
+    root.respond({
+      counter: 3
+    });
+    httpBackend.flush();
+    expect(last_counter).toBe(3);
   });
 })

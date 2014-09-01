@@ -233,10 +233,10 @@ class Spotify(object):
                               BadGateway('Spotify operation timed out'))
 
     def _pause(self, *args):
-        self.play(play=False)
+        self.player.play(play=False)
 
     def _end_of_track(self, *args):
-        self.next_track()
+        self.player.next_track()
 
     @endpoint('/login/', methods=['POST'])
     def login(self, **kwds):

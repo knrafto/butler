@@ -29,6 +29,13 @@ angular.module('butler', ['ionic', 'poll'])
   poll(SERVER_URL + '/player/state/', function(data) {
     $scope.history = data.history;
   });
+})
+
+.directive('butlerTrack', function() {
+  return {
+    restrict: 'E',
+    templateUrl: 'templates/track.html'
+  }
 });
 
 angular.module('poll', [])

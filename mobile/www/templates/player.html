@@ -6,11 +6,7 @@
     <ion-tab title="History">
       <ion-content>
         <ion-list>
-          <ion-item ng-repeat="track in history" class="item-thumbnail-left">
-            <img ng-src="{{track.artwork_url}}">
-            <h2>{{track.name}}</h2>
-            <p>{{track.artist}}</p>
-          </ion-item>
+          <butler-track ng-repeat="track in history"></butler-track>
         </ion-list>
       </ion-content>
     </ion-tab>

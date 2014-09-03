@@ -14,6 +14,14 @@ spotify = libspotify.spotify
 @mock.patch.object(spotify, 'Session', autospec=True)
 @mock.patch.object(spotify, 'AlsaSink', autospec=True)
 class SpotifyTestCase(unittest.TestCase):
+    metadata = player.Metadata(
+        id='spotify:track:foo',
+        name='spam',
+        artist='eggs',
+        duration=1.0,
+        url='http://open.spotify.com/track/foo',
+        image_url='http://open.spotify.com/image/foo',
+        backend='spotify')
     player = mock.Mock(spec=player.Player)
 
     def test_link_url(self, sink_mock, session_mock):
@@ -102,6 +110,50 @@ class SpotifyTestCase(unittest.TestCase):
         track.seek(2.3456)
         session.player.seek.assert_called_with(2345)
 
+    def _mock_link(self, url):
+        link = mock.Mock(spec=spotify.Link)
+        link.uri = 'spotify:' + \
+            url[len('http://open.spotify.com/')].replace('/', ':')
+
     def _mock_track(self, metadata):
+        artist = mock.Mock(spec=spotify.Artist)
+        artist.name = metadata.artist
+
+        album = mock.Mock(spec=spotify.Album)
+        album.artist = artist
+        album.cover_link.return_value = self._mock_link(metadata.image_url)
+
         track = mock.Mock(spec=spotify.Track)
+        track.link.uri = metadata.id
         track.name = metadata.name
+        track.duration = metadata.duration
+        return track
+
+    def _mock_album(self, metadata, tracks):
+        artist = mock.Mock(spec=spotify.Artist)
+        artist.name = metadata.artist
+
+        album = mock.Mock(spec=spotify.Album)
+        album.link.uri = metadata.id
+        album.name = metadata.name
+        album.artist = artist
+        album.cover_link.return_value = self._mock_link(metadata.image_url)
+        album.browser.return_value.tracks = tracks
+        return album
+
+    def _mock_artist(self, metadata, tracks):
+        artist = mock.Mock(spec=spotify.Artist)
+        artist.link.uri = metadata.id
+        artist.name = metadata.name
+        artist.portrait_link.return_value = self._mock_link(metadata.image_url)
+        artist.browser.return_value.tracks = tracks
+        return artist
+
+    def _mock_playlist(self, metadata, tracks):
+        playlist = mock.Mock(spec=spotify.Playlist)
+        playlist.link.uri = metadata.id
+        playlist.name = metadata.name
+        playlist.owner.display_name = metadata.artist
+        playlist.image.return_value = self._mock_link(metadata.image_url)
+        playlist.tracks = tracks
+        return playlist

@@ -1,20 +1,20 @@
 describe('poll', function() {
-  var poll, httpBackend, timeout;
+  var poll, $httpBackend, $timeout;
 
   beforeEach(module('poll'));
 
-  beforeEach(inject(function(_poll_, $httpBackend, $timeout) {
+  beforeEach(inject(function(_poll_, _$httpBackend_, _$timeout_) {
     poll = _poll_;
-    httpBackend = $httpBackend;
-    timeout = $timeout;
+    $httpBackend = _$httpBackend_;
+    $timeout = _$timeout_;
   }));
 
   it('should respond with received counter', function() {
-    httpBackend.whenGET('http://example.com/').respond({
+    $httpBackend.whenGET('http://example.com/').respond({
       counter: 2,
       foo: 'bar'
     });
-    httpBackend.whenGET('http://example.com/?counter=2').respond({
+    $httpBackend.whenGET('http://example.com/?counter=2').respond({
       counter: 3,
       foo: 'baz'
     })
@@ -27,29 +27,29 @@ describe('poll', function() {
         expect(true).toBe(false);
       }
     });
-    httpBackend.flush();
-    timeout.flush();
-    httpBackend.flush();
+    $httpBackend.flush();
+    $timeout.flush();
+    $httpBackend.flush();
   });
 
-  it('should retry on error', function() {
+  it('should reset on error', function() {
     var last_counter = null;
-    var root = httpBackend.whenGET('http://example.com/')
+    var root = $httpBackend.whenGET('http://example.com/')
     root.respond({
       counter: 2
     });
-    httpBackend.whenGET('http://example.com/?counter=2').respond(500, {})
+    $httpBackend.whenGET('http://example.com/?counter=2').respond(500, {})
     poll('http://example.com/', function(data) {
       last_counter = data.counter;
     });
-    httpBackend.flush();
-    timeout.flush();
-    httpBackend.flush();
-    timeout.flush();
+    $httpBackend.flush();
+    $timeout.flush();
+    $httpBackend.flush();
+    $timeout.flush();
     root.respond({
       counter: 3
     });
-    httpBackend.flush();
+    $httpBackend.flush();
     expect(last_counter).toBe(3);
   });
 })

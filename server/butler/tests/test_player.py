@@ -1,59 +1,47 @@
 import gevent
-import unittest
 import mock
+import unittest
 
 from butler.options import Options
-from butler.services.player import Metadata, Player, Track, TrackSet
+from butler.services import player
 
 class PlayerTestCase(unittest.TestCase):
-    data = {
-        'id': '12345',
-        'name': 'spam',
-        'artist': 'eggs',
-        'duration': 1.0,
-        'url': 'http://www.foo.org/123',
-        'artwork_url': 'http://www.foo.org/123/artwork.jpg',
-        'backend': 'music'
-    }
+    options = Options({'player': {'history_size': 3}})
+    metadata = player.Metadata(
+        id='12345',
+        name='spam',
+        artist='eggs',
+        duration=1.0,
+        url='http://www.foo.org/123',
+        images=[
+            player.Image(size=64, url='http://www.foo.org/small.jpg'),
+            player.Image(size=640, url='http://www.foo.org/large.jpg')],
+        backend='music')
 
-    def _mock_tracks(self, count=10, cls=Track):
+    def _mock_tracks(self, count=10):
         for i in range(count):
-            data = self.data.copy()
+            data = self.metadata._asdict()
             data['name'] = 'track%i' % (i + 1)
-            yield mock.Mock(spec=Track)(Metadata(**data))
-
-    def test_json(self):
-        metadata = Metadata(**self.data)
-        self.assertEqual(metadata.json(), self.data)
-
-        track = Track(Metadata(**self.data))
-        self.assertEqual(track.json(), self.data)
-
-        tracks = list(self._mock_tracks())
-        track_set = TrackSet(metadata, tracks)
-        set_data = self.data.copy()
-        set_data['tracks'] = tracks
-        self.assertEqual(track_set.json(), set_data)
+            track = mock.Mock(spec=player.Track)
+            track.metadata = player.Metadata(**data)
+            yield track
 
     def test_empty_set(self):
-        metadata = Metadata(**self.data)
         with self.assertRaises(ValueError):
-            TrackSet(metadata, [])
+            player.TrackSet(self.metadata, [])
 
     def test_options(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
         self.assertEqual(service.history.size, 3)
 
     def test_state(self):
-        service = Player(Options())
+        service = player.Player(Options())
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
         service.history.extend([track3, track2, track1])
         service.queue.extend([
-            TrackSet(None, [track4, track5]),
-            TrackSet(None, [track6])
+            player.TrackSet(None, [track4, track5]),
+            player.TrackSet(None, [track6])
         ])
 
         counter = service.state()['counter']
@@ -72,16 +60,14 @@ class PlayerTestCase(unittest.TestCase):
         self.assertTrue(marker)
 
     def test_next_track(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
         service.history.extend([track3, track2, track1])
         service.queue.extend([
-            TrackSet(None, [track4, track5]),
-            TrackSet(None, [track6])
+            player.TrackSet(None, [track4, track5]),
+            player.TrackSet(None, [track6])
         ])
 
         service.next_track()
@@ -110,16 +96,14 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(len(service.queue), 0)
 
     def test_prev_track(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
         service.history.extend([track3, track2, track1])
         service.queue.extend([
-            TrackSet(None, [track4, track5]),
-            TrackSet(None, [track6])
+            player.TrackSet(None, [track4, track5]),
+            player.TrackSet(None, [track6])
         ])
 
         service.prev_track()
@@ -141,16 +125,14 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(len(service.queue), 5)
 
     def test_next_set(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
         service.history.extend([track2, track1])
         service.queue.extend([
-            TrackSet(None, [track3, track4, track5]),
-            TrackSet(None, [track6])
+            player.TrackSet(None, [track3, track4, track5]),
+            player.TrackSet(None, [track6])
         ])
 
         service.next_track()
@@ -160,16 +142,14 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(service.history, [track4, track3, track2])
 
     def test_play(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
         service.history.extend([track3, track2, track1])
         service.queue.extend([
-            TrackSet(None, [track4, track5]),
-            TrackSet(None, [track6])
+            player.TrackSet(None, [track4, track5]),
+            player.TrackSet(None, [track6])
         ])
 
         service.next_track()
@@ -191,13 +171,11 @@ class PlayerTestCase(unittest.TestCase):
         self.assertFalse(track6.play.called)
 
     def test_add(self):
-        service = Player(Options({
-            'player': {'history_size': 3}
-        }))
+        service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = \
             self._mock_tracks(6)
 
-        service.add(0, TrackSet(None, [track1, track2, track3]))
+        service.add(0, player.TrackSet(None, [track1, track2, track3]))
         self.assertTrue(service.playing)
         self.assertEqual(service.current_track, track1)

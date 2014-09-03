@@ -1,11 +1,10 @@
 import unittest
 
-import simplejson as json
 from werkzeug.exceptions import Unauthorized
 from werkzeug.test import Client, EnvironBuilder
 from werkzeug.wrappers import Response
 
-from butler import routing
+from butler import json, routing
 from butler.options import Options
 from butler.routing import endpoint
 
@@ -26,23 +25,12 @@ class RoutingTestCase(unittest.TestCase):
         self.assertEqual(request.json(), None)
 
     def test_response(self):
-        class Spam:
-            def json(self):
-                return Eggs()
-
-        class Eggs:
-            def json(self):
-                return 'eggs'
-
         data = {
             'foo': 42,
-            'bar': Spam()
+            'bar': 'eggs'
         }
         response = routing.JSONResponse(data)
-        self.assertEqual(json.loads(response.get_data(as_text=True)), {
-            'foo': 42,
-            'bar': 'eggs'
-        })
+        self.assertEqual(json.loads(response.get_data(as_text=True)), data)
         self.assertEqual(response.content_type, 'application/json')
 
         response = routing.JSONResponse()

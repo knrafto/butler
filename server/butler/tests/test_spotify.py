@@ -15,15 +15,6 @@ spotify = libspotify.spotify
 @mock.patch.object(spotify, 'AlsaSink', autospec=True)
 class SpotifyTestCase(unittest.TestCase):
     player = mock.Mock(spec=player.Player)
-    data = {
-        'id': 'foo',
-        'name': 'spam',
-        'artist': 'eggs',
-        'duration': 1.0,
-        'url': 'http://www.foo.org/123',
-        'artwork_url': 'http://www.foo.org/123/artwork.jpg',
-        'backend': 'spotify'
-    }
 
     def test_link_url(self, sink_mock, session_mock):
         link = mock.Mock(spec=spotify.Link)
@@ -111,93 +102,6 @@ class SpotifyTestCase(unittest.TestCase):
         track.seek(2.3456)
         session.player.seek.assert_called_with(2345)
 
-    def _mock_tracks(self, prefix):
-        for i in range(3):
-            track = mock.Mock(spec=spotify.Track)
-            track.is_loaded = True
-            track.error = spotify.ErrorType.OK
-            track.link.uri = '%strack%i' % (prefix, i + 1)
-            yield track
-
-    def _mock_link(self, uri):
-        link = mock.Mock(spec=spotify.Link)
-        link.uri = uri
-        tracks = list(self._mock_tracks(uri))
-        if uri.startswith('track'):
-            track = mock.Mock(spec=spotify.Track)
-            track.is_loaded = True
-            track.error = spotify.ErrorType.OK
-            track.link = link
-            link.type = spotify.LinkType.TRACK
-            link.as_track.return_value = track
-        elif uri.startswith('album'):
-            browser = mock.Mock(spec=spotify.AlbumBrowser)
-            browser.is_loaded = True
-            browser.error = spotify.ErrorType.OK
-            browser.tracks = tracks
-            album = mock.Mock(spec=spotify.Album)
-            album.is_loaded = True
-            album.browse.return_value = browser
-            link.type = spotify.LinkType.ALBUM
-            link.as_album.return_value = album
-        elif uri.startswith('artist'):
-            browser = mock.Mock(spec=spotify.ArtistBrowser)
-            browser.is_loaded = True
-            browser.error = spotify.ErrorType.OK
-            browser.tracks = tracks
-            artist = mock.Mock(spec=spotify.Artist)
-            artist.is_loaded = True
-            artist.browse.return_value = browser
-            link.type = spotify.LinkType.ARTIST
-            link.as_artist.return_value = artist
-        elif uri.startswith('playlist'):
-            playlist = mock.Mock(spec=spotify.Playlist)
-            playlist.is_loaded = True
-            playlist.error = spotify.ErrorType.OK
-            playlist.tracks = tracks
-            link.type = spotify.LinkType.PLAYLIST
-            link.as_playlist.return_value = playlist
-        return link
-
-    def test_connection(self, sink_mock, session_mock):
-        service = Spotify(Options(), self.player)
-
-        states = [
-            'Logged out',
-            'Logged in',
-            'Disconnected',
-            'Undefined',
-            'Offline'
-        ]
-
-        for i, state in enumerate(states):
-            session_mock.return_value.connection.state = i
-            self.assertEqual(service.connection()['result'], state)
-
-    def test_add(self, sink_mock, session_mock):
-
-        session = session_mock.return_value
-        service = Spotify(Options({
-            'spotify': {
-                'timeout': 0
-            }
-        }), self.player)
-
-        session.connection.state = 0
-        with self.assertRaises(Unauthorized):
-            service.add(url='spam')
-
-        session.connection.state = 1
-        with self.assertRaises(BadRequest):
-            service.add()
-
-        session.get_link.side_effect = lambda link: gevent.sleep(0.005)
-        with self.assertRaises(BadGateway):
-            service.add(url='spam')
-
-        session.get_link.side_effect = self._mock_link
-        service.add(url='track1')
-        track_set = self.player.add.mock_calls[0][1]
-        self.assertEqual(len(track_set.tracks), 1)
-        track = track_set.tracks[0]
-        self.assertEqual(track.metadata, Metadata(**self.data))
+    def _mock_track(self, metadata):
+        track = mock.Mock(spec=spotify.Track)
+        track.name = metadata.name

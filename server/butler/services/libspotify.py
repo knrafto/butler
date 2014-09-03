@@ -64,6 +64,21 @@ class SpotifyTrack(Track):
     def seek(self, seconds):
         self._session.player.seek(int(seconds * 1000))
 
+class SpotifySearch(object):
+    def __init__(self, tracks, albums, artists, playlists):
+        self.tracks = list(tracks)
+        self.albums = list(albums)
+        self.artists = list(artists)
+        self.playlists = list(playlists)
+
+    def json(self):
+        return {
+            'tracks': self.tracks,
+            'albums': self.albums,
+            'artists': self.artists,
+            'playlists': self.playlists
+        }
+
 @singleton
 class Spotify(object):
     """Spotify plugin.
@@ -225,6 +240,12 @@ class Spotify(object):
             raise ValueError("Unknown link type for '%s': %r"
                 % (uri, link.type))
 
+    def _guard(seld):
+        if self._session.connection.state not in (
+                spotify.ConnectionState.LOGGED_IN,
+                spotify.ConnectionState.OFFLINE):
+            raise Unauthorized()
+
     def _timeout_context(self):
         """Return a context manager that will timeout the current
         operation with a 502: Bad Gateway.
@@ -260,20 +281,6 @@ class Spotify(object):
         with self._timeout_context():
             result.get()
 
-    @endpoint('/connection/')
-    def connection(self, **kwds):
-        """Get the connection state."""
-        states = {
-            spotify.ConnectionState.LOGGED_OUT: 'Logged out',
-            spotify.ConnectionState.LOGGED_IN: 'Logged in',
-            spotify.ConnectionState.DISCONNECTED: 'Disconnected',
-            spotify.ConnectionState.UNDEFINED: 'Undefined',
-            spotify.ConnectionState.OFFLINE: 'Offline'
-        }
-        return {
-            'result': states[self._session.connection.state]
-        }
-
     @endpoint('/add/', methods=["POST"])
     def add(self, **kwds):
         """Add a track or set from a link.
@@ -283,10 +290,7 @@ class Spotify(object):
             index: the index to insert at
             shuffle: shuffle songs
         """
-        if self._session.connection.state not in (
-                spotify.ConnectionState.LOGGED_IN,
-                spotify.ConnectionState.OFFLINE):
-            raise Unauthorized()
+        self._guard()
         options = Options(kwds)
         uri = options.str('id') or options.str('uri') or options.str('url')
         index = options.int('index')
@@ -296,3 +300,33 @@ class Spotify(object):
         with self._timeout_context():
             track_set = self._fetch_uri(uri, shuffle=shuffle)
         self.player.add(index, track_set)
+
+    @endpoint('/search/')
+    def search(self, **kwds):
+        self._guard()
+        result = gevent.event.AsyncResult()
+
+        def search_loaded(search):
+            if error_type != spotify.ErrorType.OK:
+                result.set_exception(translate_error(error_type))
+            else:
+                result.set(None)
+
+        try:
+            query = kwds.pop('q')
+        except KeyError:
+            raise BadRequest('a query is required')
+        try:
+            self._session.search(query, callback=search_loaded, **kwds)
+        except TypeError:
+            raise BadRequest('bad parameters')
+        with self._timeout_context():
+            search = result.get()
+            tracks = map(self._fetch_track, search.tracks)
+            albums = map(self._fetch_album, search.albums)
+            artists = map(self._fetch_artist, search.artists)
+            playlists = map(
+                lambda search_playlist:
+                    self._fetch_playlist(search_playlist.playlist),
+                search.playlists)
+        return SpotifySearch(tracks, albums, artists, playlists)

@@ -179,7 +179,7 @@ class Spotify(object):
             artist=self._load(self._load(track.album).artist).name,
             duration=track.duration / 1000,
             url=link_url(track.link),
-            artwork_url=link_url(self._load(track.album).cover_link()),
+            images=self._load(track.album).cover_link(),
             backend='spotify')
         return SpotifyTrack(self._session, metadata, track)
 
@@ -193,7 +193,7 @@ class Spotify(object):
             artist=self._load(album.artist).name,
             duration=duration,
             url=link_url(album.link),
-            artwork_url=link_url(album.cover_link()),
+            artwork_url=album.cover_link(),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
@@ -207,7 +207,7 @@ class Spotify(object):
             artist=artist.name,
             duration=duration,
             url=link_url(artist.link),
-            artwork_url=link_url(album.portrait_link()),
+            artwork_url=artist.portrait_link(),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
@@ -221,7 +221,7 @@ class Spotify(object):
             artist=self._load(playlist.owner).display_name,
             duration=duration,
             url=link_url(playlist.link),
-            artwork_url=link_url(playlist.image()),
+            artwork_url=playlist.image(),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
@@ -325,8 +325,7 @@ class Spotify(object):
             tracks = map(self._fetch_track, search.tracks)
             albums = map(self._fetch_album, search.albums)
             artists = map(self._fetch_artist, search.artists)
-            playlists = map(
-                lambda search_playlist:
-                    self._fetch_playlist(search_playlist.playlist),
-                search.playlists)
+            playlists = [
+                self._fetch_playlist(search_playlist.playlist)
+                    for search_playlist in search.playlists]
         return SpotifySearch(tracks, albums, artists, playlists)

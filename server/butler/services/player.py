@@ -6,11 +6,9 @@ from butler.routing import endpoint
 from butler.service import singleton
 from butler.utils import Counter, Queue
 
-Image = collections.namedtuple('Image', 'size url')
-
 class Metadata(collections.namedtuple(
         'Metadata',
-        'id name artist duration url images backend')):
+        'id name artist duration url image_url backend')):
     def json(self):
         return self._asdict()
 

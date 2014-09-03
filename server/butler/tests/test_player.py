@@ -13,9 +13,7 @@ class PlayerTestCase(unittest.TestCase):
         artist='eggs',
         duration=1.0,
         url='http://www.foo.org/123',
-        images=[
-            player.Image(size=64, url='http://www.foo.org/small.jpg'),
-            player.Image(size=640, url='http://www.foo.org/large.jpg')],
+        image_url='http://www.foo.org/small.jpg',
         backend='music')
 
     def _mock_tracks(self, count=10):

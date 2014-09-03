@@ -16,13 +16,10 @@ class PlayerTestCase(unittest.TestCase):
         image_url='http://www.foo.org/small.jpg',
         backend='music')
 
-    def _mock_tracks(self, count=10):
-        for i in range(count):
-            data = self.metadata._asdict()
-            data['name'] = 'track%i' % (i + 1)
-            track = mock.Mock(spec=player.Track)
-            track.metadata = player.Metadata(**data)
-            yield track
+    def _mock_track(self):
+        track = mock.Mock(spec=player.Track)
+        track.metadata = self.metadata
+        return track
 
     def test_empty_set(self):
         with self.assertRaises(ValueError):
@@ -34,8 +31,8 @@ class PlayerTestCase(unittest.TestCase):
 
     def test_state(self):
         service = player.Player(Options())
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
         service.queue.extend([
             player.TrackSet(None, [track4, track5]),
@@ -60,8 +57,8 @@ class PlayerTestCase(unittest.TestCase):
     def test_next_track(self):
         service = player.Player(self.options)
 
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
         service.queue.extend([
             player.TrackSet(None, [track4, track5]),
@@ -96,8 +93,8 @@ class PlayerTestCase(unittest.TestCase):
     def test_prev_track(self):
         service = player.Player(self.options)
 
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
         service.queue.extend([
             player.TrackSet(None, [track4, track5]),
@@ -125,8 +122,8 @@ class PlayerTestCase(unittest.TestCase):
     def test_next_set(self):
         service = player.Player(self.options)
 
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
         service.history.extend([track2, track1])
         service.queue.extend([
             player.TrackSet(None, [track3, track4, track5]),
@@ -142,8 +139,8 @@ class PlayerTestCase(unittest.TestCase):
     def test_play(self):
         service = player.Player(self.options)
 
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
         service.queue.extend([
             player.TrackSet(None, [track4, track5]),
@@ -171,8 +168,8 @@ class PlayerTestCase(unittest.TestCase):
     def test_add(self):
         service = player.Player(self.options)
 
-        track1, track2, track3, track4, track5, track6 = \
-            self._mock_tracks(6)
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
 
         service.add(0, player.TrackSet(None, [track1, track2, track3]))
         self.assertTrue(service.playing)

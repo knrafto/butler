@@ -179,7 +179,7 @@ class Spotify(object):
             artist=self._load(self._load(track.album).artist).name,
             duration=track.duration / 1000,
             url=link_url(track.link),
-            images=self._load(track.album).cover_link(),
+            image_url=link_url(self._load(track.album).cover_link()),
             backend='spotify')
         return SpotifyTrack(self._session, metadata, track)
 
@@ -193,7 +193,7 @@ class Spotify(object):
             artist=self._load(album.artist).name,
             duration=duration,
             url=link_url(album.link),
-            artwork_url=album.cover_link(),
+            image_url=link_url(album.cover_link()),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
@@ -207,13 +207,13 @@ class Spotify(object):
             artist=artist.name,
             duration=duration,
             url=link_url(artist.link),
-            artwork_url=artist.portrait_link(),
+            image_url=link_url(artist.portrait_link()),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
     def _fetch_playlist(self, playlist, shuffle=False):
         self._load(playlist)
-        tracks = map(self._fetch_tracks, playlist.tracks)
+        tracks = map(self._fetch_track, playlist.tracks)
         duration = sum(track.metadata.duration for track in tracks)
         metadata = Metadata(
             id=playlist.link.uri,
@@ -221,7 +221,7 @@ class Spotify(object):
             artist=self._load(playlist.owner).display_name,
             duration=duration,
             url=link_url(playlist.link),
-            artwork_url=playlist.image(),
+            image_url=link_url(playlist.image().link),
             backend='spotify')
         return TrackSet(metadata, tracks, shuffle)
 
@@ -240,7 +240,7 @@ class Spotify(object):
             raise ValueError("Unknown link type for '%s': %r"
                 % (uri, link.type))
 
-    def _guard(seld):
+    def _guard(self):
         if self._session.connection.state not in (
                 spotify.ConnectionState.LOGGED_IN,
                 spotify.ConnectionState.OFFLINE):

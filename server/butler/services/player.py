@@ -40,6 +40,7 @@ class TrackSet(object):
             raise ValueError('empty track set')
         self.metadata = metadata
         self.tracks = list(tracks)
+        self.shuffle = shuffle
         if shuffle:
             random.shuffle(self.tracks)
 

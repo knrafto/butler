@@ -22,7 +22,7 @@ class SpotifyTestCase(unittest.TestCase):
         url='http://open.spotify.com/track/foo',
         image_url='http://open.spotify.com/image/foo',
         backend='spotify')
-    player = mock.Mock(spec=player.Player)
+    player = mock.Mock()
 
     def test_link_url(self, sink_mock, session_mock):
         link = mock.Mock(spec=spotify.Link)
@@ -113,47 +113,176 @@ class SpotifyTestCase(unittest.TestCase):
     def _mock_link(self, url):
         link = mock.Mock(spec=spotify.Link)
         link.uri = 'spotify:' + \
-            url[len('http://open.spotify.com/')].replace('/', ':')
+            url[len('http://open.spotify.com/'):].replace('/', ':')
+        return link
 
     def _mock_track(self, metadata):
         artist = mock.Mock(spec=spotify.Artist)
+        artist.loaded = True
+        artist.error = spotify.ErrorType.OK
         artist.name = metadata.artist
 
         album = mock.Mock(spec=spotify.Album)
+        album.loaded = True
+        album.error = spotify.ErrorType.OK
         album.artist = artist
         album.cover_link.return_value = self._mock_link(metadata.image_url)
 
         track = mock.Mock(spec=spotify.Track)
+        track.loaded = True
+        track.error = spotify.ErrorType.OK
         track.link.uri = metadata.id
         track.name = metadata.name
-        track.duration = metadata.duration
+        track.duration = int(metadata.duration * 1000)
+        track.album = album
         return track
 
     def _mock_album(self, metadata, tracks):
         artist = mock.Mock(spec=spotify.Artist)
+        artist.loaded = True
+        artist.error = spotify.ErrorType.OK
         artist.name = metadata.artist
 
+        browser = mock.Mock(spec=spotify.AlbumBrowser)
+        browser.loaded = True
+        browser.error = spotify.ErrorType.OK
+        browser.tracks = tracks
+
         album = mock.Mock(spec=spotify.Album)
+        album.loaded = True
+        album.error = spotify.ErrorType.OK
         album.link.uri = metadata.id
         album.name = metadata.name
         album.artist = artist
         album.cover_link.return_value = self._mock_link(metadata.image_url)
-        album.browser.return_value.tracks = tracks
+        album.browse.return_value = browser
         return album
 
     def _mock_artist(self, metadata, tracks):
+        browser = mock.Mock(spec=spotify.ArtistBrowser)
+        browser.loaded = True
+        browser.error = spotify.ErrorType.OK
+        browser.tracks = tracks
+
         artist = mock.Mock(spec=spotify.Artist)
+        artist.loaded = True
+        artist.error = spotify.ErrorType.OK
         artist.link.uri = metadata.id
         artist.name = metadata.name
         artist.portrait_link.return_value = self._mock_link(metadata.image_url)
-        artist.browser.return_value.tracks = tracks
+        artist.browse.return_value = browser
         return artist
 
     def _mock_playlist(self, metadata, tracks):
+        owner = mock.Mock(spec=spotify.User)
+        owner.loaded = True
+        owner.error = spotify.ErrorType.OK
+        owner.display_name = metadata.artist
+
         playlist = mock.Mock(spec=spotify.Playlist)
+        playlist.loaded = True
+        playlist.error = spotify.ErrorType.OK
         playlist.link.uri = metadata.id
         playlist.name = metadata.name
-        playlist.owner.display_name = metadata.artist
-        playlist.image.return_value = self._mock_link(metadata.image_url)
+        playlist.owner = owner
+        playlist.image.return_value.link = self._mock_link(metadata.image_url)
         playlist.tracks = tracks
         return playlist
+
+    def test_add(self, sink_mock, session_mock):
+        session = session_mock.return_value
+        service = Spotify(Options(), self.player)
+        session.connection.state = 1
+
+        track_metadata = player.Metadata(
+            id='spotify:track:foo',
+            name='spam',
+            artist='eggs',
+            duration=1.0,
+            url='http://open.spotify.com/track/foo',
+            image_url='http://open.spotify.com/image/foo',
+            backend='spotify')
+        album_metadata = player.Metadata(
+            id='spotify:album:foo',
+            name='spam',
+            artist='eggs',
+            duration=6.0,
+            url='http://open.spotify.com/album/foo',
+            image_url='http://open.spotify.com/image/foo',
+            backend='spotify')
+        artist_metadata = player.Metadata(
+            id='spotify:artist:foo',
+            name='spam',
+            artist='spam',
+            duration=6.0,
+            url='http://open.spotify.com/artist/foo',
+            image_url='http://open.spotify.com/image/foo',
+            backend='spotify')
+        playlist_metadata = player.Metadata(
+            id='spotify:playlist:foo',
+            name='spam',
+            artist='eggs',
+            duration=6.0,
+            url='http://open.spotify.com/playlist/foo',
+            image_url='http://open.spotify.com/image/foo',
+            backend='spotify')
+
+        tracks = [self._mock_track(track_metadata) for _ in range(6)]
+
+        link = mock.Mock(spec=spotify.Link)
+        session.get_link.return_value = link
+
+        link.type = spotify.LinkType.TRACK
+        link.as_track.return_value = self._mock_track(track_metadata)
+        service.add(id='foo', index=2, shuffle=True)
+
+        args = self.player.add.call_args
+        self.assertEqual(len(args[0]), 2)
+        self.assertEqual(len(args[1]), 0)
+        index, track_set = args[0]
+        self.assertEqual(index, 2)
+        self.assertEqual(track_set.metadata, track_metadata)
+        self.assertEqual(len(track_set.tracks), 1)
+        self.assertEqual(track_set.tracks[0].metadata, track_metadata)
+
+        link.type = spotify.LinkType.ALBUM
+        link.as_album.return_value = self._mock_album(album_metadata, tracks)
+        service.add(id='foo')
+
+        args = self.player.add.call_args
+        self.assertEqual(len(args[0]), 2)
+        self.assertEqual(len(args[1]), 0)
+        index, track_set = args[0]
+        self.assertEqual(index, 0)
+        self.assertFalse(track_set.shuffle)
+        self.assertEqual(track_set.metadata, album_metadata)
+        self.assertEqual([track.metadata for track in track_set.tracks],
+                         [track_metadata] * 6)
+
+        link.type = spotify.LinkType.ARTIST
+        link.as_artist.return_value = self._mock_artist(artist_metadata, tracks)
+        service.add(id='foo', shuffle=True)
+
+        args = self.player.add.call_args
+        self.assertEqual(len(args[0]), 2)
+        self.assertEqual(len(args[1]), 0)
+        index, track_set = args[0]
+        self.assertEqual(index, 0)
+        self.assertTrue(track_set.shuffle)
+        self.assertEqual(track_set.metadata, artist_metadata)
+        self.assertEqual([track.metadata for track in track_set.tracks],
+                         [track_metadata] * 6)
+
+        link.type = spotify.LinkType.PLAYLIST
+        link.as_playlist.return_value = self._mock_playlist(playlist_metadata, tracks)
+        service.add(id='foo', shuffle=True)
+
+        args = self.player.add.call_args
+        self.assertEqual(len(args[0]), 2)
+        self.assertEqual(len(args[1]), 0)
+        index, track_set = args[0]
+        self.assertEqual(index, 0)
+        self.assertTrue(track_set.shuffle)
+        self.assertEqual(track_set.metadata, playlist_metadata)
+        self.assertEqual([track.metadata for track in track_set.tracks],
+                         [track_metadata] * 6)

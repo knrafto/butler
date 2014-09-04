@@ -259,7 +259,7 @@ class Spotify(object):
     def _end_of_track(self, *args):
         self.player.next_track()
 
-    @endpoint('/login/', methods=['POST'])
+    @endpoint('/login', methods=['POST'])
     def login(self, **kwds):
         """Log in to Spotify."""
         options = Options(kwds)
@@ -281,7 +281,7 @@ class Spotify(object):
         with self._timeout_context():
             result.get()
 
-    @endpoint('/add/', methods=["POST"])
+    @endpoint('/add', methods=["POST"])
     def add(self, **kwds):
         """Add a track or set from a link.
 
@@ -301,7 +301,7 @@ class Spotify(object):
             track_set = self._fetch_uri(uri, shuffle=shuffle)
         self.player.add(index, track_set)
 
-    @endpoint('/search/')
+    @endpoint('/search')
     def search(self, **kwds):
         self._guard()
         result = gevent.event.AsyncResult()

@@ -105,7 +105,7 @@ class Player(object):
             next_track.prefetch()
         self.state_counter.set()
 
-    @endpoint('/state/')
+    @endpoint('/state')
     def state(self, **kwds):
         """Return the current player state."""
         counter = Options(kwds).int('counter', None)
@@ -115,7 +115,7 @@ class Player(object):
         d['counter'] = counter
         return d
 
-    @endpoint('/next_track/', methods=['POST'])
+    @endpoint('/next_track', methods=['POST'])
     def next_track(self, **kwds):
         """Load and play the next track."""
         try:
@@ -129,7 +129,7 @@ class Player(object):
             self.history.insert(0, last_track)
         self._sync_player()
 
-    @endpoint('/prev_track/', methods=['POST'])
+    @endpoint('/prev_track', methods=['POST'])
     def prev_track(self, **kwds):
         """Load and play the previous track."""
         try:
@@ -140,7 +140,7 @@ class Player(object):
             self.queue.insert(0, TrackSet.singleton(prev_track))
         self._sync_player()
 
-    @endpoint('/next_set/', methods=['POST'])
+    @endpoint('/next_set', methods=['POST'])
     def next_set(self, **kwds):
         """Load and play the next track set."""
         if self.current_track:
@@ -151,7 +151,7 @@ class Player(object):
             pass
         self._sync_player()
 
-    @endpoint('/play/', methods=['POST'])
+    @endpoint('/play', methods=['POST'])
     def play(self, **kwds):
         """Resume spotify playback.
 

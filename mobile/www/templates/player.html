@@ -11,6 +11,26 @@
       </ion-content>
     </ion-tab>
     <ion-tab title="Current">
+      <ion-content scroll="false">
+        <ion-list type="list-inset">
+          <ion-item>
+            <img ng-src="{{current_track.image_url}}">
+          </ion-item>
+          <ion-item>
+            <h2>{{current_track.name}}</h2>
+            <p>{{current_track.artist}}</p>
+          </ion-item>
+          <ion-item>
+            <div class="button-bar">
+              <button class="button button-icon icon ion-ios7-skipbackward"></button>
+              <button class="button button-icon icon"
+                 ng-class="playing ? 'ion-ios7-pause' : 'ion-ios7-play'"></button>
+              <button class="button button-icon icon ion-ios7-skipforward"></button>
+              <button class="button button-icon icon ion-ios7-fastforward"></button>
+            </div>
+          </ion-item>
+        </ion-list>
+      </ion-content>
     </ion-tab>
     <ion-tab title="Queue">
     </ion-tab>

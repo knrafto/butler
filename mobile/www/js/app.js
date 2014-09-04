@@ -26,7 +26,10 @@ angular.module('butler', ['ionic', 'poll'])
 })
 
 .controller('PlayerCtrl', function($scope, poll, SERVER_URL) {
-  poll(SERVER_URL + '/player/state/', function(data) {
+  poll(SERVER_URL + '/player/state', function(data) {
+    $scope.playing = data.playing;
+    $scope.current_track = data.current_track;
+    $scope.queue = data.queue;
     $scope.history = data.history;
   });
 })

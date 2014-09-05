@@ -1,14 +1,12 @@
 module.exports = function(config){
   config.set({
 
-    basePath: '../',
-
     files: [
-      'www/lib/ionic/js/angular/angular.js',
-      'www/lib/ionic/js/angular/angular-animate.js',
-      'www/lib/ionic/js/angular/angular-mocks.js',
-      'www/lib/ionic/js/angular/angular-sanitize.min.js',
-      'www/lib/ionic/js/angular-ui/angular-ui-router.js',
+      'www/lib/angular/angular.js',
+      'www/lib/angular-animate/angular-animate.js',
+      'www/lib/angular-mocks/angular-mocks.js',
+      'www/lib/angular-sanitize/angular-sanitize.js',
+      'www/lib/angular-ui-router/release/angular-ui-router.js',
       'www/lib/ionic/js/ionic.js',
       'www/lib/ionic/js/ionic-angular.min.js',
       'www/js/*.js',
@@ -20,11 +18,11 @@ module.exports = function(config){
 
     frameworks: ['jasmine'],
 
-    browsers: ['Chrome'],
+    browsers: ['PhantomJS'],
 
     plugins: [
-      'karma-chrome-launcher',
       'karma-jasmine',
+      'karma-phantomjs-launcher',
       'karma-ng-html2js-preprocessor'
     ],
 

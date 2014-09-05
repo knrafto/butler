@@ -34,34 +34,6 @@ class Track(object):
     def json(self):
         return self.metadata.json()
 
-class TrackSet(object):
-    def __init__(self, metadata, tracks, shuffle=False):
-        if not tracks:
-            raise ValueError('empty track set')
-        self.metadata = metadata
-        self.tracks = list(tracks)
-        self.shuffle = shuffle
-        if shuffle:
-            random.shuffle(self.tracks)
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        try:
-            return self.tracks.pop(0)
-        except IndexError:
-            raise StopIteration
-
-    def json(self):
-        d = self.metadata.json()
-        d['tracks'] = self.tracks
-        return d
-
-    @classmethod
-    def singleton(cls, track):
-        return cls(track.metadata, [track])
-
 @singleton
 class Player(object):
     """A music player service."""
@@ -79,10 +51,8 @@ class Player(object):
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
-        lineup = [track for track_set in self.queue
-            for track in track_set.tracks]
         try:
-            track = lineup[0]
+            track = self.queue[0]
         except IndexError:
             track = None
         if track != self.current_track:
@@ -98,7 +68,7 @@ class Player(object):
                 self.playing = False
             self.current_track = track
         try:
-            next_track = lineup[1]
+            next_track = self.queue[1]
         except IndexError:
             pass
         else:
@@ -119,14 +89,11 @@ class Player(object):
     def next_track(self, **kwds):
         """Load and play the next track."""
         try:
-            track_set = self.queue[0]
+            prev_track = self.queue.pop(0)
         except IndexError:
             pass
         else:
-            last_track = track_set.next()
-            if not track_set.tracks:
-                self.queue.pop(0)
-            self.history.insert(0, last_track)
+            self.history.insert(0, prev_track)
         self._sync_player()
 
     @endpoint('/prev_track', methods=['POST'])
@@ -137,18 +104,7 @@ class Player(object):
         except IndexError:
             pass
         else:
-            self.queue.insert(0, TrackSet.singleton(prev_track))
-        self._sync_player()
-
-    @endpoint('/next_set', methods=['POST'])
-    def next_set(self, **kwds):
-        """Load and play the next track set."""
-        if self.current_track:
-            self.history.insert(0, self.current_track)
-        try:
-            self.queue.pop(0)
-        except IndexError:
-            pass
+            self.queue.insert(0, prev_track)
         self._sync_player()
 
     @endpoint('/play', methods=['POST'])
@@ -169,7 +125,10 @@ class Player(object):
             self.current_track.play(play=play)
         self.state_counter.set()
 
-    def add(self, index, track_set):
-        """Add a track at an index in the queue."""
-        self.queue.insert(index, track_set)
+    def add(self, index, tracks, shuffle=False):
+        """Add tracks at an index in the queue."""
+        if shuffle:
+            tracks = tracks[:]
+            random.shuffle(tracks)
+        self.queue[index:index] = tracks
         self._sync_player()

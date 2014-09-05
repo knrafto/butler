@@ -14,7 +14,7 @@ from werkzeug.exceptions import BadGateway, BadRequest, Unauthorized
 from butler.options import Options
 from butler.routing import endpoint
 from butler.service import singleton
-from butler.services.player import Metadata, Track, TrackSet
+from butler.services.player import Metadata, Track
 
 def link_url(link):
     return 'http://open.spotify.com/' + \
@@ -63,21 +63,6 @@ class SpotifyTrack(Track):
 
     def seek(self, seconds):
         self._session.player.seek(int(seconds * 1000))
-
-class SpotifySearch(object):
-    def __init__(self, tracks, albums, artists, playlists):
-        self.tracks = list(tracks)
-        self.albums = list(albums)
-        self.artists = list(artists)
-        self.playlists = list(playlists)
-
-    def json(self):
-        return {
-            'tracks': self.tracks,
-            'albums': self.albums,
-            'artists': self.artists,
-            'playlists': self.playlists
-        }
 
 @singleton
 class Spotify(object):
@@ -183,63 +168,6 @@ class Spotify(object):
             backend='spotify')
         return SpotifyTrack(self._session, metadata, track)
 
-    def _fetch_album(self, album, shuffle=False):
-        tracks = map(self._fetch_track, self._load(album.browse()).tracks)
-        duration = sum(track.metadata.duration for track in tracks)
-        self._load(album)
-        metadata = Metadata(
-            id=album.link.uri,
-            name=album.name,
-            artist=self._load(album.artist).name,
-            duration=duration,
-            url=link_url(album.link),
-            image_url=link_url(album.cover_link()),
-            backend='spotify')
-        return TrackSet(metadata, tracks, shuffle)
-
-    def _fetch_artist(self, artist, shuffle=False):
-        tracks = map(self._fetch_track, self._load(artist.browse()).tracks)
-        duration = sum(track.metadata.duration for track in tracks)
-        self._load(artist)
-        metadata = Metadata(
-            id=artist.link.uri,
-            name=artist.name,
-            artist=artist.name,
-            duration=duration,
-            url=link_url(artist.link),
-            image_url=link_url(artist.portrait_link()),
-            backend='spotify')
-        return TrackSet(metadata, tracks, shuffle)
-
-    def _fetch_playlist(self, playlist, shuffle=False):
-        self._load(playlist)
-        tracks = map(self._fetch_track, playlist.tracks)
-        duration = sum(track.metadata.duration for track in tracks)
-        metadata = Metadata(
-            id=playlist.link.uri,
-            name=playlist.name,
-            artist=self._load(playlist.owner).display_name,
-            duration=duration,
-            url=link_url(playlist.link),
-            image_url=link_url(playlist.image().link),
-            backend='spotify')
-        return TrackSet(metadata, tracks, shuffle)
-
-    def _fetch_uri(self, uri, shuffle=False):
-        """Fetch a TrackSet from a link."""
-        link = self._session.get_link(uri)
-        if link.type == spotify.LinkType.TRACK:
-            return TrackSet.singleton(self._fetch_track(link.as_track()))
-        elif link.type == spotify.LinkType.ALBUM:
-            return self._fetch_album(link.as_album(), shuffle)
-        elif link.type == spotify.LinkType.ARTIST:
-            return self._fetch_artist(link.as_artist(), shuffle)
-        elif link.type == spotify.LinkType.PLAYLIST:
-            return self._fetch_playlist(link.as_playlist(), shuffle)
-        else:
-            raise ValueError("Unknown link type for '%s': %r"
-                % (uri, link.type))
-
     def _guard(self):
         if self._session.connection.state not in (
                 spotify.ConnectionState.LOGGED_IN,
@@ -298,8 +226,20 @@ class Spotify(object):
         if not uri:
             raise BadRequest('a uri or url is required')
         with self._timeout_context():
-            track_set = self._fetch_uri(uri, shuffle=shuffle)
-        self.player.add(index, track_set)
+            link = self._session.get_link(uri)
+            if link.type == spotify.LinkType.TRACK:
+                tracks = [link.as_track()]
+            elif link.type == spotify.LinkType.ALBUM:
+                tracks = self._load(link.as_album().browse()).tracks
+            elif link.type == spotify.LinkType.ARTIST:
+                tracks = self._load(link.as_artist().browse()).tracks
+            elif link.type == spotify.LinkType.PLAYLIST:
+                tracks = self._load(link.as_playlist()).tracks
+            else:
+                raise ValueError("Unknown link type for '%s': %r"
+                    % (uri, link.type))
+            tracks = [self._fetch_track(track) for track in tracks]
+        self.player.add(index, tracks, shuffle)
 
     @endpoint('/search')
     def search(self, **kwds):
@@ -322,10 +262,4 @@ class Spotify(object):
             raise BadRequest('bad parameters')
         with self._timeout_context():
             search = result.get()
-            tracks = map(self._fetch_track, search.tracks)
-            albums = map(self._fetch_album, search.albums)
-            artists = map(self._fetch_artist, search.artists)
-            playlists = [
-                self._fetch_playlist(search_playlist.playlist)
-                    for search_playlist in search.playlists]
-        return SpotifySearch(tracks, albums, artists, playlists)
+            # TODO

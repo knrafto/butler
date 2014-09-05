@@ -17,13 +17,7 @@ class PlayerTestCase(unittest.TestCase):
         backend='music')
 
     def _mock_track(self):
-        track = mock.Mock(spec=player.Track)
-        track.metadata = self.metadata
-        return track
-
-    def test_empty_set(self):
-        with self.assertRaises(ValueError):
-            player.TrackSet(self.metadata, [])
+        return mock.Mock(spec=player.Track)
 
     def test_options(self):
         service = player.Player(self.options)
@@ -34,10 +28,7 @@ class PlayerTestCase(unittest.TestCase):
         track1, track2, track3, track4, track5, track6 = (
             self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
-        service.queue.extend([
-            player.TrackSet(None, [track4, track5]),
-            player.TrackSet(None, [track6])
-        ])
+        service.queue.extend([track4, track5, track6])
 
         counter = service.state()['counter']
         marker = []
@@ -60,10 +51,7 @@ class PlayerTestCase(unittest.TestCase):
         track1, track2, track3, track4, track5, track6 = (
             self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
-        service.queue.extend([
-            player.TrackSet(None, [track4, track5]),
-            player.TrackSet(None, [track6])
-        ])
+        service.queue.extend([track4, track5, track6])
 
         service.next_track()
         track5.load.assert_called_with()
@@ -72,6 +60,7 @@ class PlayerTestCase(unittest.TestCase):
         self.assertTrue(service.playing)
         self.assertEqual(service.history, [track4, track3, track2])
         self.assertEqual(service.current_track, track5)
+        self.assertEqual(service.queue, [track5, track6])
 
         service.next_track()
         track5.play.assert_called_with(play=False)
@@ -81,14 +70,16 @@ class PlayerTestCase(unittest.TestCase):
         self.assertTrue(service.playing)
         self.assertEqual(service.history, [track5, track4, track3])
         self.assertEqual(service.current_track, track6)
+        self.assertEqual(service.queue, [track6])
         self.assertEqual(len(service.queue), 1)
 
         service.next_track()
         track6.play.assert_called_with(play=False)
         track6.unload.assert_called_with()
         self.assertFalse(service.playing)
+        self.assertEqual(service.history, [track6, track5, track4])
         self.assertEqual(service.current_track, None)
-        self.assertEqual(len(service.queue), 0)
+        self.assertEqual(service.queue, [])
 
     def test_prev_track(self):
         service = player.Player(self.options)
@@ -96,10 +87,7 @@ class PlayerTestCase(unittest.TestCase):
         track1, track2, track3, track4, track5, track6 = (
             self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
-        service.queue.extend([
-            player.TrackSet(None, [track4, track5]),
-            player.TrackSet(None, [track6])
-        ])
+        service.queue.extend([track4, track5, track6])
 
         service.prev_track()
         track3.load.assert_called_with()
@@ -107,6 +95,7 @@ class PlayerTestCase(unittest.TestCase):
         self.assertTrue(service.playing)
         self.assertEqual(service.history, [track2, track1])
         self.assertEqual(service.current_track, track3)
+        self.assertEqual(service.queue, [track3, track4, track5, track6])
 
         service.next_track()
         self.assertTrue(service.playing)
@@ -117,24 +106,7 @@ class PlayerTestCase(unittest.TestCase):
             service.prev_track()
         self.assertTrue(service.playing)
         self.assertEqual(service.current_track, track1)
-        self.assertEqual(len(service.queue), 5)
-
-    def test_next_set(self):
-        service = player.Player(self.options)
-
-        track1, track2, track3, track4, track5, track6 = (
-            self._mock_track() for _ in range(6))
-        service.history.extend([track2, track1])
-        service.queue.extend([
-            player.TrackSet(None, [track3, track4, track5]),
-            player.TrackSet(None, [track6])
-        ])
-
-        service.next_track()
-        service.next_set()
-        self.assertTrue(service.playing)
-        self.assertEqual(service.current_track, track6)
-        self.assertEqual(service.history, [track4, track3, track2])
+        self.assertEqual(service.queue, [track1, track2, track3, track4, track5, track6])
 
     def test_play(self):
         service = player.Player(self.options)
@@ -142,10 +114,7 @@ class PlayerTestCase(unittest.TestCase):
         track1, track2, track3, track4, track5, track6 = (
             self._mock_track() for _ in range(6))
         service.history.extend([track3, track2, track1])
-        service.queue.extend([
-            player.TrackSet(None, [track4, track5]),
-            player.TrackSet(None, [track6])
-        ])
+        service.queue.extend([track4, track5, track6])
 
         service.next_track()
         track5.load.assert_called_with()
@@ -167,12 +136,18 @@ class PlayerTestCase(unittest.TestCase):
         self.assertFalse(service.playing)
         self.assertFalse(track6.play.called)
 
-    def test_add(self):
+    @mock.patch.object(player, 'random', autospec=True)
+    def test_add(self, random):
         service = player.Player(self.options)
 
         track1, track2, track3, track4, track5, track6 = (
             self._mock_track() for _ in range(6))
 
-        service.add(0, player.TrackSet(None, [track1, track2, track3]))
+        service.add(0, [track1, track2, track3])
+        service.add(2, [track4, track5, track6])
         self.assertTrue(service.playing)
         self.assertEqual(service.current_track, track1)
+        self.assertEqual(service.queue, [track1, track2, track4, track5, track6, track3])
+
+        service.add(3, [track2, track3, track4], shuffle=True)
+        random.shuffle.assert_called_with([track2, track3, track4])

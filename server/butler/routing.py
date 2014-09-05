@@ -73,5 +73,10 @@ class Dispatcher(object):
     def __call__(self, environ, start_reponse):
         urls = self.url_map.bind_to_environ(environ)
         request = JSONRequest(environ)
+        # TODO: test CORS
+        if request.method == 'OPTIONS':
+            return Response(headers=[
+                ('Access-Control-Allow-Origin', '*'),
+                ('Access-Control-Allow-Headers', 'Content-Type')])
         return urls.dispatch(lambda f, kwds: self._dispatch(f, request, kwds),
                              catch_http_exceptions=True)

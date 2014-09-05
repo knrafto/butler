@@ -9,7 +9,7 @@ var sh = require('shelljs')
 var karma = require('gulp-karma');
 
 var paths = {
-  karma: ['tests/*.js'],
+  karma: ['tests/**/*.js'],
   sass: ['./scss/**/*.scss']
 };
 

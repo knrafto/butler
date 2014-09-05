@@ -27,25 +27,25 @@ angular.module('butler', ['ionic', 'poll'])
 
 .filter('time', function() {
   return function(input) {
-    var total = Math.floor(+input),
-        minutes = Math.floor(total / 60),
-        seconds = total % 60;
-    return minutes + ':' + ('0' + seconds).slice(-2);
+    var seconds = (input / 1000) | 0;
+    return Math.floor(seconds / 60) + ':' + ('0' + seconds % 60).slice(-2);
   };
 })
 
 .controller('PlayerCtrl', function($scope, $http, poll, SERVER_URL) {
-  $scope.playing = false;
-  $scope.position = 0.00;
-  $scope.current_track = null;
-  $scope.queue = [];
-  $scope.history = [];
+  angular.extend($scope, {
+    playing: false,
+    position: 0,
+    current_track: null,
+    queue: [],
+    history: []
+  });
+  $scope.slider = {};
+  $scope.slider.position = $scope.position;
 
   poll(SERVER_URL + '/player/state', function(data) {
-    $scope.playing = data.playing;
-    $scope.current_track = data.current_track;
-    $scope.queue = data.queue;
-    $scope.history = data.history;
+    angular.extend($scope, data);
+    $scope.slider.position = $scope.position;
   });
 
   $scope.nextTrack = function() {
@@ -56,12 +56,12 @@ angular.module('butler', ['ionic', 'poll'])
     $http.post(SERVER_URL + '/player/prev_track');
   };
 
-  $scope.play = function(pause) {
-    $http.post(SERVER_URL + '/player/play', {pause: pause});
+  $scope.toggle = function() {
+    $http.post(SERVER_URL + '/player/play', {pause: $scope.playing});
   };
 
-  $scope.seek = function(position) {
-    $http.post(SERVER_URL + '/player/seek', {seek: position});
+  $scope.seek = function() {
+    $http.post(SERVER_URL + '/player/seek', {seek: $scope.slider.position});
   }
 
 });

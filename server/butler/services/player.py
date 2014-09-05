@@ -44,6 +44,7 @@ class Player(object):
         options = options.options(self.name)
         history_size = options.int('history_size', None)
         self.playing = False
+        self.position = 0
         self.current_track = None
         self.history = Queue(size=history_size)
         self.queue = []
@@ -66,6 +67,7 @@ class Player(object):
                     self.playing = True
             else:
                 self.playing = False
+            self.position = 0
             self.current_track = track
         try:
             next_track = self.queue[1]
@@ -81,7 +83,7 @@ class Player(object):
         counter = Options(kwds).int('counter', None)
         counter = self.state_counter.wait(counter)
         d = {prop: getattr(self, prop)
-            for prop in 'playing current_track queue history'.split()}
+            for prop in 'playing position current_track queue history'.split()}
         d['counter'] = counter
         return d
 
@@ -129,6 +131,7 @@ class Player(object):
         """
         seek = Options(kwds).float('seek', 0.0)
         if self.current_track:
+            self.position = seek
             self.current_track.seek(seek)
         self.state_counter.set()
 

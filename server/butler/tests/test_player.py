@@ -58,25 +58,30 @@ class PlayerTestCase(unittest.TestCase):
         track5.play.assert_called_with()
         track6.prefetch.assert_called_with()
         self.assertTrue(service.playing)
+        self.assertEqual(service.position, 0)
         self.assertEqual(service.history, [track4, track3, track2])
         self.assertEqual(service.current_track, track5)
         self.assertEqual(service.queue, [track5, track6])
 
+        service.seek(seek=3.14)
         service.next_track()
         track5.play.assert_called_with(play=False)
         track5.unload.assert_called_with()
         track6.load.assert_called_with()
         track6.play.assert_called_with()
         self.assertTrue(service.playing)
+        self.assertEqual(service.position, 0)
         self.assertEqual(service.history, [track5, track4, track3])
         self.assertEqual(service.current_track, track6)
         self.assertEqual(service.queue, [track6])
         self.assertEqual(len(service.queue), 1)
 
+        service.seek(seek=3.14)
         service.next_track()
         track6.play.assert_called_with(play=False)
         track6.unload.assert_called_with()
         self.assertFalse(service.playing)
+        self.assertEqual(service.position, 0)
         self.assertEqual(service.history, [track6, track5, track4])
         self.assertEqual(service.current_track, None)
         self.assertEqual(service.queue, [])
@@ -89,10 +94,12 @@ class PlayerTestCase(unittest.TestCase):
         service.history.extend([track3, track2, track1])
         service.queue.extend([track4, track5, track6])
 
+        service.seek(seek=3.14)
         service.prev_track()
         track3.load.assert_called_with()
         track3.play.assert_called_with()
         self.assertTrue(service.playing)
+        self.assertEqual(service.position, 0)
         self.assertEqual(service.history, [track2, track1])
         self.assertEqual(service.current_track, track3)
         self.assertEqual(service.queue, [track3, track4, track5, track6])
@@ -102,9 +109,11 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(service.history, [track3, track2, track1])
         self.assertEqual(service.current_track, track4)
 
+        service.seek(seek=3.14)
         for _ in range(5):
             service.prev_track()
         self.assertTrue(service.playing)
+        self.assertEqual(service.position, 0)
         self.assertEqual(service.current_track, track1)
         self.assertEqual(service.queue, [track1, track2, track3, track4, track5, track6])
 
@@ -147,6 +156,7 @@ class PlayerTestCase(unittest.TestCase):
         service.next_track()
         service.seek(seek=3.14)
         track5.seek.assert_called_with(3.14)
+        self.assertEqual(service.position, 3.14)
 
     @mock.patch.object(player, 'random', autospec=True)
     def test_add(self, random):

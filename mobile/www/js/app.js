@@ -26,6 +26,12 @@ angular.module('butler', ['ionic', 'poll'])
 })
 
 .controller('PlayerCtrl', function($scope, $http, poll, SERVER_URL) {
+  $scope.playing = false;
+  $scope.position = 0.00;
+  $scope.current_track = null;
+  $scope.queue = [];
+  $scope.history = [];
+
   poll(SERVER_URL + '/player/state', function(data) {
     $scope.playing = data.playing;
     $scope.current_track = data.current_track;

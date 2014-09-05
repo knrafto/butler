@@ -25,20 +25,33 @@ angular.module('butler', ['ionic', 'poll'])
   $urlRouterProvider.otherwise('/app/player');
 })
 
-.controller('PlayerCtrl', function($scope, poll, SERVER_URL) {
+.controller('PlayerCtrl', function($scope, $http, poll, SERVER_URL) {
   poll(SERVER_URL + '/player/state', function(data) {
     $scope.playing = data.playing;
     $scope.current_track = data.current_track;
     $scope.queue = data.queue;
     $scope.history = data.history;
   });
-})
 
-.directive('butlerTrack', function() {
-  return {
-    restrict: 'E',
-    templateUrl: 'templates/track.html'
-  }
+  $scope.nextTrack = function() {
+    $http.post(SERVER_URL + '/player/next_track');
+  };
+
+  $scope.prevTrack = function() {
+    $http.post(SERVER_URL + '/player/prev_track');
+  };
+
+  $scope.nextSet = function() {
+    $http.post(SERVER_URL + '/player/next_set');
+  };
+
+  $scope.toggle = function() {
+    var pause = $scope.playing;
+    $http.post(SERVER_URL + '/player/play', {
+      data: {pause: pause}
+    });
+  };
+
 });
 
 angular.module('poll', [])

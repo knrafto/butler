@@ -1,4 +1,4 @@
-describe('poll', function() {
+describe('service: poll', function() {
   var poll, $httpBackend, $timeout;
 
   beforeEach(module('poll'));

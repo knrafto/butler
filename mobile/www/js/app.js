@@ -47,9 +47,7 @@ angular.module('butler', ['ionic', 'poll'])
 
   $scope.toggle = function() {
     var pause = $scope.playing;
-    $http.post(SERVER_URL + '/player/play', {
-      data: {pause: pause}
-    });
+    $http.post(SERVER_URL + '/player/play', {pause: pause});
   };
 
 });

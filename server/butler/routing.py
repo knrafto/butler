@@ -12,7 +12,7 @@ class JSONRequest(Request):
     max_content_length = 1024 * 1024 # 1MB
 
     def json(self):
-        if self.headers.get('content-type') == 'application/json':
+        if self.mimetype == 'application/json':
             return json.loads(self.get_data(as_text=True))
 
 class JSONResponse(Response):

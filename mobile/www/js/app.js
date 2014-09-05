@@ -25,6 +25,15 @@ angular.module('butler', ['ionic', 'poll'])
   $urlRouterProvider.otherwise('/app/player');
 })
 
+.filter('time', function() {
+  return function(input) {
+    var total = Math.floor(+input),
+        minutes = Math.floor(total / 60),
+        seconds = total % 60;
+    return minutes + ':' + ('0' + seconds).slice(-2);
+  };
+})
+
 .controller('PlayerCtrl', function($scope, $http, poll, SERVER_URL) {
   $scope.playing = false;
   $scope.position = 0.00;
@@ -47,14 +56,13 @@ angular.module('butler', ['ionic', 'poll'])
     $http.post(SERVER_URL + '/player/prev_track');
   };
 
-  $scope.nextSet = function() {
-    $http.post(SERVER_URL + '/player/next_set');
-  };
-
-  $scope.toggle = function() {
-    var pause = $scope.playing;
+  $scope.play = function(pause) {
     $http.post(SERVER_URL + '/player/play', {pause: pause});
   };
+
+  $scope.seek = function(position) {
+    $http.post(SERVER_URL + '/player/seek', {seek: position});
+  }
 
 });
 

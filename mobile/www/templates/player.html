@@ -25,22 +25,38 @@
             <p>{{current_track.artist}}</p>
           </ion-item>
           <ion-item>
+            <div class="range">
+              <p>{{position | time}}</p>
+              <input type="range" min="0" max="{{current_track.duration}}"
+                ng-model="position"
+                on-release="seek(position)">
+              <p>{{current_track.duration | time}}</p>
+            </div>
+          </ion-item>
+          <ion-item>
             <div class="button-bar">
               <button class="button button-icon icon ion-ios7-skipbackward"
                 ng-click="prevTrack()"></button>
               <button class="button button-icon icon"
                 ng-class="playing ? 'ion-ios7-pause' : 'ion-ios7-play'"
-                ng-click="toggle()"></button>
+                ng-click="play(playing)"></button>
               <button class="button button-icon icon ion-ios7-skipforward"
                 ng-click="nextTrack()"></button>
-              <button class="button button-icon icon ion-ios7-fastforward"
-                ng-click="nextSet()"></button>
             </div>
           </ion-item>
         </ion-list>
       </ion-content>
     </ion-tab>
     <ion-tab title="Queue">
+      <ion-content>
+        <ion-list>
+          <ion-item class="item-thumbnail-left" ng-repeat="track in queue">
+            <img ng-src="{{track.image_url}}">
+            <h2>{{track.name}}</h2>
+            <p>{{track.artist}}</p>
+          </ion-item>
+        </ion-list>
+      </ion-content>
     </ion-tab>
   </ion-tabs>
 </ion-view>

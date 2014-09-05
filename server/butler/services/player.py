@@ -156,17 +156,18 @@ class Player(object):
         """Resume spotify playback.
 
         Parameters:
-            play: If false, pause playback
+            pause: If true, pause playback
             seek: Seek position, in milliseconds
         """
         options = Options(kwds)
         seek = options.float('seek', None)
-        play = options.bool('play')
+        play = not options.bool('pause')
         if self.current_track:
             if seek is not None:
                 self.current_track.seek(seek)
             self.playing = play
             self.current_track.play(play=play)
+        self.state_counter.set()
 
     def add(self, index, track_set):
         """Add a track at an index in the queue."""

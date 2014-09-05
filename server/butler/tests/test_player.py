@@ -153,13 +153,15 @@ class PlayerTestCase(unittest.TestCase):
         track6.prefetch.assert_called_with()
         self.assertTrue(service.playing)
 
-        service.play(play=False)
+        service.play(pause=True)
         track5.play.assert_called_with(play=False)
         self.assertFalse(service.playing)
 
-        service.play(play=False, seek=3.14)
+        service.play(seek=3.14)
+        self.assertTrue(service.playing)
         track5.seek.assert_called_with(3.14)
 
+        service.play(pause=True)
         service.next_track()
         self.assertEqual(service.current_track, track6)
         self.assertFalse(service.playing)

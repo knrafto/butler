@@ -1,9 +1,9 @@
 module.exports = function(config){
   config.set({
 
-    basePath : '../',
+    basePath: '../',
 
-    files : [
+    files: [
       'www/lib/ionic/js/angular/angular.js',
       'www/lib/ionic/js/angular/angular-animate.js',
       'www/lib/ionic/js/angular/angular-mocks.js',
@@ -12,21 +12,32 @@ module.exports = function(config){
       'www/lib/ionic/js/ionic.js',
       'www/lib/ionic/js/ionic-angular.min.js',
       'www/js/*.js',
-      'tests/unit/*.js'
+      'tests/unit/*.js',
+      'www/templates/*.html'
     ],
 
-    autoWatch : true,
+    autoWatch: true,
 
     frameworks: ['jasmine'],
 
-    browsers : ['Chrome'],
+    browsers: ['Chrome'],
 
-    plugins : [
+    plugins: [
       'karma-chrome-launcher',
-      'karma-jasmine'
+      'karma-jasmine',
+      'karma-ng-html2js-preprocessor'
     ],
 
-    junitReporter : {
+    preprocessors: {
+      'www/templates/*.html': ['ng-html2js']
+    },
+
+    ngHtml2JsPreprocessor: {
+      stripPrefix: 'www/',
+      moduleName: 'templates'
+    },
+
+    junitReporter: {
       outputFile: 'test_out/unit.xml',
       suite: 'unit'
     }

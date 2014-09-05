@@ -3,17 +3,6 @@
     <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
   </ion-nav-buttons>
   <ion-tabs>
-    <ion-tab title="History">
-      <ion-content>
-        <ion-list>
-          <ion-item class="item-thumbnail-left" ng-repeat="track in history">
-            <img ng-src="{{track.image_url}}">
-            <h2>{{track.name}}</h2>
-            <p>{{track.artist}}</p>
-          </ion-item>
-        </ion-list>
-      </ion-content>
-    </ion-tab>
     <ion-tab title="Current">
       <ion-content scroll="false">
         <ion-list type="list-inset">
@@ -43,6 +32,17 @@
               <button class="button button-icon icon ion-ios7-skipforward"
                 ng-click="nextTrack()"></button>
             </div>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ion-tab>
+    <ion-tab title="History">
+      <ion-content>
+        <ion-list>
+          <ion-item class="item-thumbnail-left" ng-repeat="track in history">
+            <img ng-src="{{track.image_url}}">
+            <h2>{{track.name}}</h2>
+            <p>{{track.artist}}</p>
           </ion-item>
         </ion-list>
       </ion-content>

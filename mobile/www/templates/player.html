@@ -18,7 +18,8 @@
               <p>{{slider.position | time}}</p>
               <input type="range" min="0" max="{{current_track.duration}}"
                 ng-model="slider.position"
-                on-release="seek()">
+                on-touch="slider.touch()"
+                on-release="slider.release()">
               <p>{{current_track.duration | time}}</p>
             </div>
           </ion-item>

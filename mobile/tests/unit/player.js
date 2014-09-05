@@ -1,5 +1,5 @@
 describe('controller: PlayerCtrl', function() {
-  var $scope, $httpBackend, pollCallback;
+  var $scope, $interval, $httpBackend, pollCallback;
 
   var init = {
     playing: false,
@@ -25,8 +25,9 @@ describe('controller: PlayerCtrl', function() {
       pollCallback = callback;
     };
 
-    inject(function($rootScope, $controller, _$location_, _$httpBackend_) {
+    inject(function($rootScope, $controller, _$httpBackend_, _$interval_) {
       $httpBackend = _$httpBackend_;
+      $interval = _$interval_
       $scope = $rootScope.$new();
       $controller('PlayerCtrl', {
           $scope: $scope,
@@ -78,14 +79,39 @@ describe('controller: PlayerCtrl', function() {
     $scope.toggle();
     $httpBackend.flush();
 
-    $scope.slider.position = 314;
     $httpBackend.expectPOST(
       'http://www.example.com/player/seek',
       {seek: 314}
     ).respond(200, '');
-    $scope.seek();
+    $scope.slider.touch();
+    $scope.slider.position = 314;
+    $scope.slider.release();
     $httpBackend.flush();
   });
+
+  it('should keep track of time', function() {
+    $scope.playing = true;
+    $scope.slider.position = 0;
+    $interval.flush(1000);
+    expect($scope.slider.position).toEqual(1000);
+
+
+    $httpBackend.expectPOST(
+      'http://www.example.com/player/seek',
+      {seek: 0}
+    ).respond(200, '');
+    $scope.slider.touch();
+    $scope.slider.position = 0;
+    $interval.flush(1000);
+    expect($scope.slider.position).toEqual(0);
+    $scope.slider.release();
+    $httpBackend.flush();
+
+    $scope.playing = false;
+    $scope.slider.position = 0;
+    $interval.flush(1000);
+    expect($scope.slider.position).toEqual(0);
+  })
 });
 
 describe('filter: time', function() {

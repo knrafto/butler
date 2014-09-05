@@ -32,7 +32,7 @@ angular.module('butler', ['ionic', 'poll'])
   };
 })
 
-.controller('PlayerCtrl', function($scope, $http, poll, SERVER_URL) {
+.controller('PlayerCtrl', function($scope, $http, $interval, poll, SERVER_URL) {
   angular.extend($scope, {
     playing: false,
     position: 0,
@@ -48,6 +48,12 @@ angular.module('butler', ['ionic', 'poll'])
     $scope.slider.position = $scope.position;
   });
 
+  $scope.stopTick = $interval(function() {
+    if ($scope.playing && !$scope.slider.sliding) {
+      $scope.slider.position = +$scope.slider.position + 100;
+    }
+  }, 100);
+
   $scope.nextTrack = function() {
     $http.post(SERVER_URL + '/player/next_track');
   };
@@ -60,9 +66,18 @@ angular.module('butler', ['ionic', 'poll'])
     $http.post(SERVER_URL + '/player/play', {pause: $scope.playing});
   };
 
-  $scope.seek = function() {
+  $scope.slider.touch = function() {
+    $scope.slider.sliding = true;
+  };
+
+  $scope.slider.release = function() {
+    $scope.slider.sliding = false;
     $http.post(SERVER_URL + '/player/seek', {seek: $scope.slider.position});
-  }
+  };
+
+  $scope.$on('destroy', function() {
+    $interval.cancel($scope.stopTick);
+  });
 
 });
 

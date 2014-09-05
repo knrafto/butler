@@ -5,29 +5,28 @@ var concat = require('gulp-concat');
 var sass = require('gulp-sass');
 var minifyCss = require('gulp-minify-css');
 var rename = require('gulp-rename');
-var sh = require('shelljs')
+var sh = require('shelljs');
 var karma = require('gulp-karma');
 
 var paths = {
-  karma: ['tests/**/*.js'],
   sass: ['./scss/**/*.scss']
 };
 
+gulp.task('default', ['sass', 'test']);
+
 gulp.task('test', function() {
-  // Be sure to return the stream
-  return gulp.src(paths.karma)
+  return gulp.src('failed-match-*')
     .pipe(karma({
       configFile: 'karma.conf.js',
       action: 'run'
     }))
     .on('error', function(err) {
-      // Make sure failed tests cause gulp to exit non-zero
       throw err;
     });
 });
 
 gulp.task('test-watch', function() {
-  gulp.src(paths.karma)
+  gulp.src('failed-match-*')
     .pipe(karma({
       configFile: 'karma.conf.js',
       action: 'watch'
@@ -45,8 +44,6 @@ gulp.task('sass', function(done) {
     .pipe(gulp.dest('./www/css/'))
     .on('end', done);
 });
-
-gulp.task('default', ['sass', 'test']);
 
 gulp.task('sass-watch', function() {
   gulp.watch(paths.sass, ['sass']);

@@ -63,7 +63,7 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(service.current_track, track5)
         self.assertEqual(service.queue, [track5, track6])
 
-        service.seek(seek=3.14)
+        service.seek(seek=314)
         service.next_track()
         track5.play.assert_called_with(play=False)
         track5.unload.assert_called_with()
@@ -76,7 +76,7 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(service.queue, [track6])
         self.assertEqual(len(service.queue), 1)
 
-        service.seek(seek=3.14)
+        service.seek(seek=314)
         service.next_track()
         track6.play.assert_called_with(play=False)
         track6.unload.assert_called_with()
@@ -94,7 +94,7 @@ class PlayerTestCase(unittest.TestCase):
         service.history.extend([track3, track2, track1])
         service.queue.extend([track4, track5, track6])
 
-        service.seek(seek=3.14)
+        service.seek(seek=314)
         service.prev_track()
         track3.load.assert_called_with()
         track3.play.assert_called_with()
@@ -109,7 +109,7 @@ class PlayerTestCase(unittest.TestCase):
         self.assertEqual(service.history, [track3, track2, track1])
         self.assertEqual(service.current_track, track4)
 
-        service.seek(seek=3.14)
+        service.seek(seek=314)
         for _ in range(5):
             service.prev_track()
         self.assertTrue(service.playing)
@@ -154,9 +154,9 @@ class PlayerTestCase(unittest.TestCase):
         service.queue.extend([track4, track5, track6])
 
         service.next_track()
-        service.seek(seek=3.14)
-        track5.seek.assert_called_with(3.14)
-        self.assertEqual(service.position, 3.14)
+        service.seek(seek=314)
+        track5.seek.assert_called_with(314)
+        self.assertEqual(service.position, 314)
 
     @mock.patch.object(player, 'random', autospec=True)
     def test_add(self, random):

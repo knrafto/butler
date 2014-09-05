@@ -18,7 +18,7 @@ class SpotifyTestCase(unittest.TestCase):
         id='spotify:track:foo',
         name='spam',
         artist='eggs',
-        duration=1.0,
+        duration=1000,
         url='http://open.spotify.com/track/foo',
         image_url='http://open.spotify.com/image/foo',
         backend='spotify')
@@ -107,8 +107,8 @@ class SpotifyTestCase(unittest.TestCase):
         session.player.prefetch.assert_called_with(spotify_track)
         track.play(True)
         session.player.play.assert_called_with(True)
-        track.seek(2.3456)
-        session.player.seek.assert_called_with(2345)
+        track.seek(314)
+        session.player.seek.assert_called_with(314)
 
     def _mock_link(self, url):
         link = mock.Mock(spec=spotify.Link)
@@ -137,7 +137,7 @@ class SpotifyTestCase(unittest.TestCase):
         track.error = spotify.ErrorType.OK
         track.link.uri = metadata.id
         track.name = metadata.name
-        track.duration = int(metadata.duration * 1000)
+        track.duration = metadata.duration
         track.album = album
         return track
 
@@ -181,7 +181,7 @@ class SpotifyTestCase(unittest.TestCase):
             id='spotify:track:foo',
             name='spam',
             artist='eggs',
-            duration=1.0,
+            duration=1000,
             url='http://open.spotify.com/track/foo',
             image_url='http://open.spotify.com/image/foo',
             backend='spotify')

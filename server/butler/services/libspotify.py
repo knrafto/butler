@@ -1,5 +1,3 @@
-from __future__ import division
-
 import functools
 import os
 import random
@@ -61,8 +59,8 @@ class SpotifyTrack(Track):
     def play(self, play=True):
         self._session.player.play(play)
 
-    def seek(self, seconds):
-        self._session.player.seek(int(seconds * 1000))
+    def seek(self, ms):
+        self._session.player.seek(ms)
 
 @singleton
 class Spotify(object):
@@ -162,7 +160,7 @@ class Spotify(object):
             id=track.link.uri,
             name=track.name,
             artist=self._load(self._load(track.album).artist).name,
-            duration=track.duration / 1000,
+            duration=track.duration,
             url=link_url(track.link),
             image_url=link_url(self._load(track.album).cover_link()),
             backend='spotify')

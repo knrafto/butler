@@ -28,7 +28,7 @@ class Track(object):
     def play(self, play=True):
         raise NotImplementedError
 
-    def seek(self, seconds):
+    def seek(self, ms):
         raise NotImplementedError
 
     def json(self):
@@ -96,7 +96,7 @@ class Player(object):
             pass
         else:
             self.history.insert(0, prev_track)
-        self._sync_player()
+            self._sync_player()
 
     @endpoint('/prev_track', methods=['POST'])
     def prev_track(self, **kwds):
@@ -107,7 +107,7 @@ class Player(object):
             pass
         else:
             self.queue.insert(0, prev_track)
-        self._sync_player()
+            self._sync_player()
 
     @endpoint('/play', methods=['POST'])
     def play(self, **kwds):
@@ -120,7 +120,7 @@ class Player(object):
         if self.current_track:
             self.playing = play
             self.current_track.play(play=play)
-        self.state_counter.set()
+            self.state_counter.set()
 
     @endpoint('/seek', methods=['POST'])
     def seek(self, **kwds):
@@ -129,11 +129,11 @@ class Player(object):
         Parameters:
             seek: Seek position, in milliseconds
         """
-        seek = Options(kwds).float('seek', 0.0)
+        seek = Options(kwds).int('seek')
         if self.current_track:
             self.position = seek
             self.current_track.seek(seek)
-        self.state_counter.set()
+            self.state_counter.set()
 
     def add(self, index, tracks, shuffle=False):
         """Add tracks at an index in the queue."""

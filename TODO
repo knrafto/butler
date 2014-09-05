@@ -2,6 +2,7 @@
 * test Player
   * JSON
   * state
+  * tick
 * test Spotify
   * end of track
   * random errors

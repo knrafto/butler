@@ -1,6 +1,8 @@
 import collections
 import random
 
+import gevent
+
 from butler.options import Options
 from butler.routing import endpoint
 from butler.service import singleton
@@ -50,6 +52,8 @@ class Player(object):
         self.queue = []
         self.state_counter = Counter()
 
+        gevent.spawn(self._tick);
+
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
         try:
@@ -76,6 +80,12 @@ class Player(object):
         else:
             next_track.prefetch()
         self.state_counter.set()
+
+    def _tick(self):
+        while True:
+            gevent.sleep(0.1)
+            if self.playing:
+                self.position += 100
 
     @endpoint('/state')
     def state(self, **kwds):

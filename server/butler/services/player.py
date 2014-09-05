@@ -109,20 +109,27 @@ class Player(object):
 
     @endpoint('/play', methods=['POST'])
     def play(self, **kwds):
-        """Resume spotify playback.
+        """Resume playback.
 
         Parameters:
             pause: If true, pause playback
-            seek: Seek position, in milliseconds
         """
-        options = Options(kwds)
-        seek = options.float('seek', None)
-        play = not options.bool('pause')
+        play = not Options(kwds).bool('pause')
         if self.current_track:
-            if seek is not None:
-                self.current_track.seek(seek)
             self.playing = play
             self.current_track.play(play=play)
+        self.state_counter.set()
+
+    @endpoint('/seek', methods=['POST'])
+    def seek(self, **kwds):
+        """Seek to a position.
+
+        Parameters:
+            seek: Seek position, in milliseconds
+        """
+        seek = Options(kwds).float('seek', 0.0)
+        if self.current_track:
+            self.current_track.seek(seek)
         self.state_counter.set()
 
     def add(self, index, tracks, shuffle=False):

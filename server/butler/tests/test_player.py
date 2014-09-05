@@ -126,15 +126,27 @@ class PlayerTestCase(unittest.TestCase):
         track5.play.assert_called_with(play=False)
         self.assertFalse(service.playing)
 
-        service.play(seek=3.14)
+        service.play(pause=False)
+        track5.play.assert_called_with(play=True)
         self.assertTrue(service.playing)
-        track5.seek.assert_called_with(3.14)
 
         service.play(pause=True)
         service.next_track()
         self.assertEqual(service.current_track, track6)
         self.assertFalse(service.playing)
         self.assertFalse(track6.play.called)
+
+    def test_seek(self):
+        service = player.Player(self.options)
+
+        track1, track2, track3, track4, track5, track6 = (
+            self._mock_track() for _ in range(6))
+        service.history.extend([track3, track2, track1])
+        service.queue.extend([track4, track5, track6])
+
+        service.next_track()
+        service.seek(seek=3.14)
+        track5.seek.assert_called_with(3.14)
 
     @mock.patch.object(player, 'random', autospec=True)
     def test_add(self, random):

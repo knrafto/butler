@@ -1,5 +1,7 @@
 Automated apartment-wide Raspberry Pi butler
 
+Has both a server running on a Raspberry Pi and a mobile app to communicate with it.
+
 # Capabilites
 
 ## Music

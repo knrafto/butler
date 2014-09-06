@@ -19,14 +19,11 @@ gulp.task('test', function() {
     .pipe(karma({
       configFile: 'karma.conf.js',
       action: 'run'
-    }))
-    .on('error', function(err) {
-      throw err;
-    });
+    }));
 });
 
 gulp.task('test-watch', function() {
-  gulp.src('failed-match-*')
+  return gulp.src('failed-match-*')
     .pipe(karma({
       configFile: 'karma.conf.js',
       action: 'watch'

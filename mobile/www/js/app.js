@@ -43,7 +43,7 @@ angular.module('butler', ['ionic', 'poll'])
   $scope.slider = {};
   $scope.slider.position = $scope.position;
 
-  poll(SERVER_URL + '/player/state', function(data) {
+  $scope.poller = poll(SERVER_URL + '/player/state', function(data) {
     angular.extend($scope, data);
     $scope.slider.position = $scope.position;
   });
@@ -76,37 +76,8 @@ angular.module('butler', ['ionic', 'poll'])
   };
 
   $scope.$on('destroy', function() {
+    $scope.poller.cancel();
     $interval.cancel($scope.stopTick);
   });
 
-});
-
-angular.module('poll', [])
-.factory('poll', function($http, $log, $timeout) {
-  return function(url, callback) {
-    var counter = null;
-
-    (function loop() {
-      params = {};
-      if (counter != null) {
-        params.counter = counter;
-      }
-
-      $http({
-        method: 'GET',
-        url: url,
-        params: params
-      })
-      .success(function(data, status, headers, config) {
-        var i;
-        counter = data.counter;
-        callback(data);
-        $timeout(loop, 0);
-      })
-      .error(function(data, status, headers, config) {
-        counter = null;
-        $timeout(loop, 5000);
-      })
-    }());
-  };
 });

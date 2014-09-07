@@ -1,5 +1,7 @@
 """Dependency injection and registration"""
 
+import werkzeug.utils
+
 class InjectionError(Exception):
     """Expection raise when a dependency injection error occurs."""
     pass
@@ -51,3 +53,9 @@ def get(name):
 def register(self, name, depends):
     """Register a class on the global injector."""
     return injector.register(name, depends)
+
+def import_all(import_path, recursive=False):
+    """Import all modules below an import path."""
+    for module_path in werkzeug.utils.find_modules(
+            import_path, recursive=recursive):
+        yield werkzeug.utils.import_string(module_path)

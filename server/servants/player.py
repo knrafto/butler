@@ -3,16 +3,11 @@ import random
 
 import gevent
 
-from butler.options import Options
-from butler.routing import endpoint
-from butler.service import singleton
-from butler.utils import Counter, Queue
+import butler
 
-class Metadata(collections.namedtuple(
-        'Metadata',
-        'id name artist duration url image_url backend')):
-    def json(self):
-        return self._asdict()
+Metadata = collections.namedtuple(
+    'Metadata',
+    'id name artist duration url image_url backend')
 
 class Track(object):
     def __init__(self, metadata):
@@ -34,28 +29,33 @@ class Track(object):
         raise NotImplementedError
 
     def json(self):
-        return self.metadata.json()
+        return self.metadata._asdict()
 
-@singleton
-class Player(object):
+    def __eq__(self, other):
+        return isinstance(other, Track) and self.metadata == other.metadata
+
+class Player(butler.Servant):
     """A music player service."""
     name = 'player'
-    depends = ['options']
 
-    def __init__(self, options):
-        options = options.options(self.name)
-        history_size = options.int('history_size', None)
+    def __init__(self, butler, config):
+        super(Player, self).__init__(butler, config)
+        self.history_size = config.get('history_size', None)
         self.playing = False
-        self.position = 0
         self.current_track = None
-        self.history = Queue(size=history_size)
+        self.history = []
         self.queue = []
-        self.state_counter = Counter()
 
-        gevent.spawn(self._tick);
+    def _emit_state(self):
+        self.emit('player.state',
+            playing=self.playing,
+            current_track=self.current_track,
+            history=self.history,
+            queue=self.queue)
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""
+
         try:
             track = self.queue[0]
         except IndexError:
@@ -71,7 +71,6 @@ class Player(object):
                     self.playing = True
             else:
                 self.playing = False
-            self.position = 0
             self.current_track = track
         try:
             next_track = self.queue[1]
@@ -79,26 +78,9 @@ class Player(object):
             pass
         else:
             next_track.prefetch()
-        self.state_counter.set()
+        self._emit_state()
 
-    def _tick(self):
-        while True:
-            gevent.sleep(0.1)
-            if self.playing:
-                self.position += 100
-
-    @endpoint('/state')
-    def state(self, **kwds):
-        """Return the current player state."""
-        counter = Options(kwds).int('counter', None)
-        counter = self.state_counter.wait(counter)
-        d = {prop: getattr(self, prop)
-            for prop in 'playing position current_track queue history'.split()}
-        d['counter'] = counter
-        return d
-
-    @endpoint('/next_track', methods=['POST'])
-    def next_track(self, **kwds):
+    def next_track(self):
         """Load and play the next track."""
         try:
             prev_track = self.queue.pop(0)
@@ -106,10 +88,12 @@ class Player(object):
             pass
         else:
             self.history.insert(0, prev_track)
+            if self.history_size is not None:
+                while len(self.history) > self.history_size:
+                    self.history.pop()
             self._sync_player()
 
-    @endpoint('/prev_track', methods=['POST'])
-    def prev_track(self, **kwds):
+    def prev_track(self,):
         """Load and play the previous track."""
         try:
             prev_track = self.history.pop(0)
@@ -119,31 +103,18 @@ class Player(object):
             self.queue.insert(0, prev_track)
             self._sync_player()
 
-    @endpoint('/play', methods=['POST'])
-    def play(self, **kwds):
-        """Resume playback.
-
-        Parameters:
-            pause: If true, pause playback
-        """
-        play = not Options(kwds).bool('pause')
+    def play(self, play=True):
+        """Resume playback."""
         if self.current_track:
             self.playing = play
             self.current_track.play(play=play)
-            self.state_counter.set()
+            self._emit_state()
 
-    @endpoint('/seek', methods=['POST'])
-    def seek(self, **kwds):
-        """Seek to a position.
-
-        Parameters:
-            seek: Seek position, in milliseconds
-        """
-        seek = Options(kwds).int('seek')
+    def seek(self, ms):
+        """Seek to a position, in milliseconds."""
         if self.current_track:
-            self.position = seek
-            self.current_track.seek(seek)
-            self.state_counter.set()
+            self.current_track.seek(ms)
+            self.emit('player.seek', ms)
 
     def add(self, index, tracks, shuffle=False):
         """Add tracks at an index in the queue."""

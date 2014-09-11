@@ -2,12 +2,9 @@ import unittest
 import mock
 
 import gevent
-from werkzeug.exceptions import BadRequest, BadGateway, Unauthorized
 
-from butler.options import Options
-from butler.services import libspotify
-from butler.services.libspotify import Spotify
-from butler.services import player
+import butler
+from servants import libspotify, player
 
 spotify = libspotify.spotify
 
@@ -22,7 +19,10 @@ class SpotifyTestCase(unittest.TestCase):
         url='http://open.spotify.com/track/foo',
         image_url='http://open.spotify.com/image/foo',
         backend='spotify')
-    player = mock.Mock()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.butler = mock.Mock(spec=butler.Butler)
 
     def test_link_url(self, sink_mock, session_mock):
         link = mock.Mock(spec=spotify.Link)
@@ -39,13 +39,11 @@ class SpotifyTestCase(unittest.TestCase):
             'path.exists.return_value': False
         })
 
-        Spotify(Options({
-            'spotify': {
-                'cachedir': 'foo',
-                'datadir': 'bar',
-                'keyfile': 'baz'
-            }
-        }), self.player)
+        libspotify.Spotify(self.butler, {
+            'cachedir': 'foo',
+            'datadir': 'bar',
+            'keyfile': 'baz'
+        })
 
         session_mock.assert_called_with(config_mock())
         os_mock.path.expanduser.assert_has_calls(
@@ -57,39 +55,35 @@ class SpotifyTestCase(unittest.TestCase):
         config_mock().load_application_key_file.assert_called_with('baz')
 
     def test_relogin(self, sink_mock, session_mock):
-        Spotify(Options(), self.player)
+        libspotify.Spotify(self.butler, {})
         session_mock().relogin.assert_called_with()
 
     def test_login(self, sink_mock, session_mock):
         session = session_mock.return_value
-        service = Spotify(Options({
-            'spotify': {
-                'timeout': 0
-            }
-        }), self.player)
+        servant = libspotify.Spotify(self.butler, {'timeout': 0})
 
         session.on.side_effect = (lambda event, f:
             f(session, spotify.ErrorType.OK))
-        service.login(username='alice', password='123456')
+        servant.login('alice', '123456')
         session.login.assert_called_with(
             'alice', '123456', remember_me=True)
 
         session.on.side_effect = (lambda event, f:
             f(session_mock(), spotify.ErrorType.BAD_USERNAME_OR_PASSWORD))
-        with self.assertRaises(BadRequest):
-            service.login(username='alice', password='123456')
+        with self.assertRaises(spotify.LibError):
+            servant.login('alice', '123456')
 
         session.on.side_effect = None
         session.login.side_effect = (lambda username, password, remember_me:
             gevent.sleep())
-        with self.assertRaises(BadGateway):
-            service.login(username='alice', password='123456')
+        with self.assertRaises(gevent.Timeout):
+            servant.login('alice', '123456')
 
         session.on.side_effect = (lambda event, f:
             f(session_mock(), spotify.ErrorType.UNABLE_TO_CONTACT_SERVER))
         session.login.side_effect = None
-        with self.assertRaises(BadGateway):
-            service.login(username='alice', password='123456')
+        with self.assertRaises(spotify.LibError):
+            servant.login('alice', '123456')
 
     def test_track(self, sink_mock, session_mock):
         session = session_mock.return_value
@@ -174,7 +168,7 @@ class SpotifyTestCase(unittest.TestCase):
 
     def test_add(self, sink_mock, session_mock):
         session = session_mock.return_value
-        service = Spotify(Options(), self.player)
+        servant = libspotify.Spotify(self.butler, {})
         session.connection.state = 1
 
         track_metadata = player.Metadata(
@@ -193,55 +187,28 @@ class SpotifyTestCase(unittest.TestCase):
 
         link.type = spotify.LinkType.TRACK
         link.as_track.return_value = tracks[0]
-        service.add(id='foo', index=2, shuffle=True)
-
-        args = self.player.add.call_args
-        self.assertEqual(len(args[0]), 3)
-        self.assertEqual(len(args[1]), 0)
-        index, spotify_tracks, shuffle = args[0]
-        self.assertEqual(index, 2)
-        self.assertEqual(len(spotify_tracks), 1)
-        self.assertEqual(spotify_tracks[0].metadata, track_metadata)
-        self.assertTrue(shuffle)
+        servant.add('foo', index=2, shuffle=True)
+        self.butler.call.assert_called_with(
+            'player.add',
+            2, [libspotify.SpotifyTrack(None, track_metadata, None)], True)
 
         link.type = spotify.LinkType.ALBUM
         link.as_album.return_value = self._mock_album(tracks)
-        service.add(id='foo')
-
-        args = self.player.add.call_args
-        self.assertEqual(len(args[0]), 3)
-        self.assertEqual(len(args[1]), 0)
-        index, spotify_tracks, shuffle = args[0]
-        self.assertEqual(index, 0)
-        self.assertEqual(len(spotify_tracks), 6)
-        for spotify_track in spotify_tracks:
-            self.assertEqual(spotify_track.metadata, track_metadata)
-        self.assertFalse(shuffle)
+        servant.add('foo')
+        self.butler.call.assert_called_with(
+            'player.add',
+            0, [libspotify.SpotifyTrack(None, track_metadata, None)] * 6, False)
 
         link.type = spotify.LinkType.ARTIST
         link.as_artist.return_value = self._mock_artist(tracks)
-        service.add(id='foo')
-
-        args = self.player.add.call_args
-        self.assertEqual(len(args[0]), 3)
-        self.assertEqual(len(args[1]), 0)
-        index, spotify_tracks, shuffle = args[0]
-        self.assertEqual(index, 0)
-        self.assertEqual(len(spotify_tracks), 6)
-        for spotify_track in spotify_tracks:
-            self.assertEqual(spotify_track.metadata, track_metadata)
-        self.assertFalse(shuffle)
+        servant.add('foo')
+        self.butler.call.assert_called_with(
+            'player.add',
+            0, [libspotify.SpotifyTrack(None, track_metadata, None)] * 6, False)
 
         link.type = spotify.LinkType.PLAYLIST
         link.as_playlist.return_value = self._mock_playlist(tracks)
-        service.add(id='foo')
-
-        args = self.player.add.call_args
-        self.assertEqual(len(args[0]), 3)
-        self.assertEqual(len(args[1]), 0)
-        index, spotify_tracks, shuffle = args[0]
-        self.assertEqual(index, 0)
-        self.assertEqual(len(spotify_tracks), 6)
-        for spotify_track in spotify_tracks:
-            self.assertEqual(spotify_track.metadata, track_metadata)
-        self.assertFalse(shuffle)
+        servant.add('foo')
+        self.butler.call.assert_called_with(
+            'player.add',
+            0, [libspotify.SpotifyTrack(None, track_metadata, None)] * 6, False)

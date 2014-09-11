@@ -1,4 +1,3 @@
-import functools
 import os
 import random
 import traceback
@@ -7,41 +6,15 @@ import gevent
 import gevent.event
 import Queue
 import spotify
-from werkzeug.exceptions import BadGateway, BadRequest, Unauthorized
 
-from butler.options import Options
-from butler.routing import endpoint
-from butler.service import singleton
-from butler.services.player import Metadata, Track
+import butler
+from servants import player
 
 def link_url(link):
     return 'http://open.spotify.com/' + \
         link.uri[len('spotify:'):].replace(':', '/')
 
-def translate_error(error_type):
-    exception_types = {
-        spotify.ErrorType.BAD_USERNAME_OR_PASSWORD: BadRequest,
-        spotify.ErrorType.NETWORK_DISABLED: BadGateway,
-        spotify.ErrorType.NO_CREDENTIALS: Unauthorized,
-        spotify.ErrorType.NO_STREAM_AVAILABLE: BadGateway,
-        spotify.ErrorType.NO_SUCH_USER: BadRequest,
-        spotify.ErrorType.OTHER_PERMANENT: BadRequest,
-        spotify.ErrorType.OTHER_TRANSIENT: BadRequest,
-        spotify.ErrorType.PERMISSION_DENIED: Unauthorized,
-        spotify.ErrorType.TRACK_NOT_PLAYABLE: BadRequest,
-        spotify.ErrorType.UNABLE_TO_CONTACT_SERVER: BadGateway,
-        spotify.ErrorType.USER_BANNED: BadRequest,
-        spotify.ErrorType.USER_NEEDS_PREMIUM: BadRequest
-    }
-    lib_error = spotify.LibError(error_type)
-    try:
-        exception_type = exception_types[error_type]
-    except KeyError:
-        return lib_error
-    else:
-        return exception_type(str(lib_error))
-
-class SpotifyTrack(Track):
+class SpotifyTrack(player.Track):
     def __init__(self, session, metadata, track):
         super(SpotifyTrack, self).__init__(metadata)
         self._session = session
@@ -62,24 +35,21 @@ class SpotifyTrack(Track):
     def seek(self, ms):
         self._session.player.seek(ms)
 
-@singleton
-class Spotify(object):
+class Spotify(butler.Servant):
     """Spotify plugin.
 
     This plugin can play tracks and playlists in a queue, and can
     search Spotify.
     """
     name = 'spotify'
-    depends = ['options', 'player']
 
-    def __init__(self, options, player):
-        options = options.options(self.name)
-        self.player = player
+    def __init__(self, butler, config):
+        super(Spotify, self).__init__(butler, config)
 
-        cachedir = options.str('cachedir')
-        datadir = options.str('datadir')
-        keyfile = options.str('keyfile')
-        self._timeout = options.float('timeout')
+        cachedir = config.get('cachedir', None)
+        datadir = config.get('datadir', None)
+        keyfile = config.get('keyfile', None)
+        self._timeout = config.get('timeout', None)
 
         config = spotify.Config()
         if cachedir:
@@ -132,7 +102,7 @@ class Spotify(object):
         if error_type not in (
                 spotify.ErrorType.OK,
                 spotify.ErrorType.IS_LOADING):
-            raise translate_error(error_type)
+            raise spotify.LibError(error_type)
         return resource.is_loaded
 
     def _load(self, resource):
@@ -156,7 +126,7 @@ class Spotify(object):
 
     def _fetch_track(self, track):
         self._load(track)
-        metadata = Metadata(
+        metadata = player.Metadata(
             id=track.link.uri,
             name=track.name,
             artist=self._load(self._load(track.album).artist).name,
@@ -172,31 +142,19 @@ class Spotify(object):
                 spotify.ConnectionState.OFFLINE):
             raise Unauthorized()
 
-    def _timeout_context(self):
-        """Return a context manager that will timeout the current
-        operation with a 502: Bad Gateway.
-        """
-        return gevent.Timeout(self._timeout,
-                              BadGateway('Spotify operation timed out'))
-
     def _pause(self, *args):
-        self.player.play(play=False)
+        self.call('player.play', False)
 
     def _end_of_track(self, *args):
-        self.player.next_track()
+        self.call('player.next_track')
 
-    @endpoint('/login', methods=['POST'])
-    def login(self, **kwds):
+    def login(self, username, password):
         """Log in to Spotify."""
-        options = Options(kwds)
-        username = options.str('username')
-        password = options.str('password')
-
         result = gevent.event.AsyncResult()
 
         def logged_in(session, error_type):
             if error_type != spotify.ErrorType.OK:
-                result.set_exception(translate_error(error_type))
+                result.set_exception(spotify.LibError(error_type))
             else:
                 result.set(None)
             return False
@@ -204,26 +162,15 @@ class Spotify(object):
         self._session.on(spotify.SessionEvent.LOGGED_IN, logged_in)
         self._session.login(username, password, remember_me=True);
 
-        with self._timeout_context():
+        with gevent.Timeout(self._timeout):
             result.get()
 
-    @endpoint('/add', methods=["POST"])
-    def add(self, **kwds):
-        """Add a track or set from a link.
-
-        Parameters:
-            id/uri/url (required): the Spotify uri/url
-            index: the index to insert at
-            shuffle: shuffle songs
-        """
+    def add(self, uri, index=0, shuffle=False):
+        """Add a track or set from a link"""
         self._guard()
-        options = Options(kwds)
-        uri = options.str('id') or options.str('uri') or options.str('url')
-        index = options.int('index')
-        shuffle = options.bool('shuffle')
         if not uri:
             raise BadRequest('a uri or url is required')
-        with self._timeout_context():
+        with gevent.Timeout(self._timeout):
             link = self._session.get_link(uri)
             if link.type == spotify.LinkType.TRACK:
                 tracks = [link.as_track()]
@@ -237,27 +184,22 @@ class Spotify(object):
                 raise ValueError("Unknown link type for '%s': %r"
                     % (uri, link.type))
             tracks = [self._fetch_track(track) for track in tracks]
-        self.player.add(index, tracks, shuffle)
+        self.call('player.add', index, tracks, shuffle)
 
-    @endpoint('/search')
-    def search(self, **kwds):
+    def search(self, query, **kwds):
         self._guard()
         result = gevent.event.AsyncResult()
 
         def search_loaded(search):
             if error_type != spotify.ErrorType.OK:
-                result.set_exception(translate_error(error_type))
+                result.set_exception(spotify.LibError(error_type))
             else:
                 result.set(None)
 
         try:
-            query = kwds.pop('q')
-        except KeyError:
-            raise BadRequest('a query is required')
-        try:
             self._session.search(query, callback=search_loaded, **kwds)
         except TypeError:
             raise BadRequest('bad parameters')
-        with self._timeout_context():
+        with gevent.Timeout(self._timeout):
             search = result.get()
             # TODO

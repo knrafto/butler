@@ -1,12 +1,10 @@
-"""The butler and other domestic servants"""
-
 import inspect
 
 import werkzeug.utils
 
 class Butler(object):
     """The butler hires and manages all servants.
-    Initialize the household with a configuration dictionary.
+    Initialize with a configuration dictionary.
     """
     def __init__(self, config):
         self.config = config

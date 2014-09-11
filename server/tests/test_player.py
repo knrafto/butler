@@ -5,9 +5,8 @@ import butler
 from servants import player
 
 class PlayerTestCase(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.butler = mock.Mock(spec=butler.Butler)
+    def setUp(self):
+        self.butler = mock.Mock(spec=butler.Butler)
 
     def _mock_track(self):
         return mock.Mock(spec=player.Track)

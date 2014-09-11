@@ -20,9 +20,8 @@ class SpotifyTestCase(unittest.TestCase):
         image_url='http://open.spotify.com/image/foo',
         backend='spotify')
 
-    @classmethod
-    def setUpClass(cls):
-        cls.butler = mock.Mock(spec=butler.Butler)
+    def setUp(self):
+        self.butler = mock.Mock(spec=butler.Butler)
 
     def test_link_url(self, sink_mock, session_mock):
         link = mock.Mock(spec=spotify.Link)

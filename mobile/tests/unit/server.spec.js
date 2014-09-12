@@ -1,181 +1,240 @@
-describe('service: server', function() {
-  var $rootScope,
-      server,
-      socket,
-      callbacks;
+describe('EventEmitter', function() {
+  var EventEmitter, emitter, calls;
 
-  function emit(name) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    angular.forEach(callbacks[name] || [], function(f) {
-      f.apply(null, args);
+  function one() {
+    calls.push('one');
+    angular.forEach(arguments, function(value) {
+      calls.push(value);
+    });
+  }
+
+  function two() {
+    calls.push('two');
+    angular.forEach(arguments, function(value) {
+      calls.push(value);
     });
   }
 
   beforeEach(module('server'));
 
-  beforeEach(inject(function($window) {
-    callbacks = {}
-    socket = {
-      emit: function() {},
+  beforeEach(inject(function(_EventEmitter_) {
+    EventEmitter = _EventEmitter_;
+    emitter = new EventEmitter;
+    calls = [];
+  }));
 
-      on: function(name, f) {
-        (callbacks[name] = callbacks[name] || []).push(f);
-      }
-    };
+  describe('.on(event, fn)', function() {
+    it('should add listeners', function() {
+      emitter.on('foo', one);
+      emitter.on('foo', two);
 
+      emitter.emit('foo', 1);
+      emitter.emit('bar', 1);
+      emitter.emit('foo', 2);
+
+      expect(calls).toEqual(['one', 1, 'two', 1, 'one', 2, 'two', 2]);
+    });
+  });
+
+  describe('.off(event, fn)', function() {
+    it('should remove a listener', function() {
+      emitter.on('foo', one);
+      emitter.on('foo', two);
+      emitter.off('foo', two);
+
+      emitter.emit('foo');
+
+      expect(calls).toEqual(['one']);
+    });
+
+    it('should work when called from an event', function() {
+      emitter.on('foo', function() {
+        emitter.off('foo', one);
+      });
+      emitter.on('foo', one);
+      emitter.emit('foo');
+      expect(calls).toEqual(['one']);
+      emitter.emit('foo');
+      expect(calls).toEqual(['one']);
+    });
+  });
+
+  describe('.listeners(event)', function() {
+    describe('when handlers are present', function() {
+      it('should return an array of callbacks', function() {
+        emitter.on('foo', one);
+        expect(emitter.listeners('foo')).toEqual([one]);
+      });
+    });
+
+    describe('when no handlers are present', function() {
+      it('should return an empty array', function() {
+        expect(emitter.listeners('foo')).toEqual([]);
+      });
+    });
+  });
+
+  describe('.hasListeners(event)', function() {
+    describe('when handlers are present', function() {
+      it('should return true', function() {
+        emitter.on('foo', one);
+        expect(emitter.hasListeners('foo')).toBe(true);
+      });
+    });
+
+    describe('when no handlers are present', function() {
+      it('should return false', function() {
+        expect(emitter.hasListeners('foo')).toBe(false);
+      });
+    });
+  });
+
+  describe('(obj)', function() {
+    it('should mixin', function() {
+      var obj = {};
+      EventEmitter(obj);
+      obj.on('foo', one);
+      obj.emit('foo');
+      expect(calls).toEqual(['one']);
+    });
+  });
+});
+
+describe('server', function() {
+  var server_url = 'http://example.com:80',
+      $rootScope, EventEmitter, calls, server, socket;
+
+  function one() {
+    calls.push('one');
+    angular.forEach(arguments, function(value) {
+      calls.push(value);
+    });
+  }
+
+  function two() {
+    calls.push('two');
+    angular.forEach(arguments, function(value) {
+      calls.push(value);
+    });
+  }
+
+  beforeEach(module('server'));
+
+  beforeEach(inject(function(_EventEmitter_, _server_, $window, _$rootScope_) {
+    EventEmitter = _EventEmitter_;
+    calls = [];
+
+    socket = {};
+    EventEmitter(socket);
+    socket.receive = socket.emit;
+    socket.emit = null;
     spyOn(socket, 'emit');
 
     $window.io = function(url) {
+      expect(url).toEqual(server_url);
       return socket;
     };
-  }));
 
-  beforeEach(inject(function(_$rootScope_, _server_) {
     $rootScope = _$rootScope_;
-    server = _server_;
+    server = _server_(server_url);
   }));
 
-  it('should emit events on a socket', function() {
-    server.emit('foo.bar', [1, 2], {x: 3});
-    expect(socket.emit).toHaveBeenCalledWith('event', {
-      name: 'foo.bar',
-      args: [1, 2],
-      kwds: {x: 3}
-    });
-
-    server.emit('foo.bar');
-    expect(socket.emit).toHaveBeenCalledWith('event', {
-      name: 'foo.bar',
-      args: [],
-      kwds: {}
+  it('should use EventEmitter mixin', function() {
+    angular.forEach(EventEmitter.prototype, function(value, key) {
+      expect(server[key]).toBeDefined();
     });
   });
 
-  it('should send requests', function() {
-    server.post('foo.bar', [1, 2], {x: 3});
-    expect(socket.emit).toHaveBeenCalledWith('request', {
-      id: 0,
-      method: 'foo.bar',
-      args: [1, 2],
-      kwds: {x: 3}
+  describe('.send(event, [args], [kwds])', function() {
+    it('should emit an event on the socket', function () {
+      server.send('foo', [1, 2], {x: 3});
+      expect(socket.emit).toHaveBeenCalledWith('event', {
+        name: 'foo',
+        args: [1, 2],
+        kwds: {x: 3}
+      });
     });
 
-    server.post('foo.bar');
-    expect(socket.emit).toHaveBeenCalledWith('request', {
-      id: 1,
-      method: 'foo.bar',
-      args: [],
-      kwds: {}
-    });
-  });
-
-  it('should respond to requests', function() {
-    container = {
-      success0: function() {},
-      success1: function() {},
-      success2: function() {},
-      failure: function() {}
-    };
-
-    spyOn(container, 'success0');
-    spyOn(container, 'success1');
-    spyOn(container, 'success2');
-    spyOn(container, 'failure');
-
-    server.post('foo.bar').then(container.success0, container.failure);
-    server.post('foo.baz').then(container.success1, container.failure);
-    server.post('foo.quux').then(container.success2, container.failure);
-
-    emit('response', {
-      id: 10,
-      result: 'result'
-    });
-    expect(container.success0).not.toHaveBeenCalled();
-    expect(container.success1).not.toHaveBeenCalled();
-    expect(container.success2).not.toHaveBeenCalled();
-
-    emit('response', {
-      id: 1,
-      result: 'result'
-    });
-    $rootScope.$apply();
-    expect(container.success1).toHaveBeenCalledWith('result');
-
-    emit('response', {
-      id: 2,
-      result: 'result'
-    });
-    $rootScope.$apply();
-    expect(container.success2).toHaveBeenCalledWith('result');
-
-    emit('response', {
-      id: 0,
-      result: 'result'
-    });
-    $rootScope.$apply();
-    expect(container.success0).toHaveBeenCalledWith('result');
-
-    expect(container.failure).not.toHaveBeenCalled();
-  });
-
-  it('should reject requests on error', function() {
-    container = {
-      success: function() {},
-      failure0: function() {},
-      failure1: function() {}
-    };
-
-    spyOn(container, 'success');
-    spyOn(container, 'failure0');
-    spyOn(container, 'failure1');
-
-    server.post('foo.bar').then(container.success, container.failure0);
-    server.post('foo.baz').then(container.success, container.failure1);
-
-    emit('error', 'SomeError', 'bam');
-    $rootScope.$apply();
-    expect(container.success).not.toHaveBeenCalled();
-    expect(container.failure0).toHaveBeenCalledWith('SomeError: bam');
-    expect(container.failure1).toHaveBeenCalledWith('SomeError: bam');
-  });
-
-  it('should subscribe to the server', function() {
-    server.on('foo.bar', function() {});
-    expect(socket.emit).toHaveBeenCalledWith('subscribe', {
-      name: 'foo.bar'
+    it('should always send arguments', function () {
+      server.send('foo');
+      expect(socket.emit).toHaveBeenCalledWith('event', {
+        name: 'foo',
+        args: [],
+        kwds: {}
+      });
     });
   });
 
-  it('should call callbacks on an event', function() {
-    container = {
-      f: function() {}
-    };
+  describe('.post(method, [args], [kwds]', function () {
+    it('should send numbered requests', function() {
+      server.post('foo', [1, 2], {x: 3});
+      expect(socket.emit).toHaveBeenCalledWith('request', {
+        id: 0,
+        method: 'foo',
+        args: [1, 2],
+        kwds: {x: 3}
+      });
 
-    spyOn(container, 'f');
-
-    server.on('foo.bar', container.f);
-    emit('event', {
-      name: 'foo.bar',
-      args: [1, 2],
-      kwds: {x: 3}
+      server.post('bar');
+      expect(socket.emit).toHaveBeenCalledWith('request', {
+        id: 1,
+        method: 'bar',
+        args: [],
+        kwds: {}
+      });
     });
-    expect(container.f).toHaveBeenCalledWith([1, 2], {x: 3});
+
+    it('should respond to requests', function() {
+      server.post('foo').then(one, two);
+      server.post('bar').then(one, two);
+      server.post('baz').then(one, two);
+
+      socket.receive('response', {
+        id: 10,
+        result: 'garply'
+      });
+      socket.receive('response', {
+        id: 1,
+        result: 'waldo'
+      });
+      socket.receive('response', {
+        id: 2,
+        result: 'fred'
+      });
+      socket.receive('response', {
+        id: 0,
+        result: 'plugh'
+      });
+      $rootScope.$apply();
+
+      expect(calls).toEqual(['one', 'waldo', 'one', 'fred', 'one', 'plugh']);
+    });
+
+    it('should reject requests on error', function() {
+      server.post('foo').then(one, two);
+      server.post('bar').then(one, two);
+
+      socket.receive('error', 'SomeError', 'bam');
+      $rootScope.$apply();
+
+      expect(calls).toEqual([
+        'two', 'SomeError: bam', 'two', 'SomeError: bam'
+      ]);
+    });
   });
 
-  it('should remove callbacks on an event', function() {
-    container = {
-      f: function() {}
-    };
-
-    spyOn(container, 'f');
-
-    server.on('foo.bar', container.f);
-    server.off('foo.bar', container.f);
-    emit('event', {
-      name: 'foo.bar',
-      args: [1, 2],
-      kwds: {x: 3}
+  describe('.on(event, fn)', function() {
+    it('should subscribe to the server', function() {
+      server.on('foo', one);
+      expect(socket.emit).toHaveBeenCalledWith('subscribe', {
+        name: 'foo'
+      });
     });
-    expect(container.f).not.toHaveBeenCalled();
+
+    it('should register handers', function() {
+      server.on('foo', one);
+      server.emit('foo');
+      expect(calls).toEqual(['one']);
+    });
   });
 });

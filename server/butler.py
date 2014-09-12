@@ -1,15 +1,41 @@
+import collections
 import inspect
 
 import werkzeug.utils
 
-class Butler(object):
+class EventEmitter(object):
+    """A mixin that provides the ability to emit and listen for
+    events.
+    """
+    def __init__(self):
+        self._callbacks = collections.defaultdict(list)
+
+    def emit(self, event, *args, **kwds):
+        """Emit an event."""
+        for f in self._callbacks[event][:]:
+            f(*args, **kwds)
+
+    def on(self, event, f):
+        """Register a listener for an event."""
+        self._callbacks[event].append(f)
+
+    def off(self, event, f):
+        """Unregister a listener for an event."""
+        if f in self._callbacks[event]:
+            self._callbacks[event].remove(f)
+
+    def listeners(self, event):
+        """Return the listeners for an event."""
+        return self._callbacks[event]
+
+class Butler(EventEmitter):
     """The butler hires and manages all servants.
     Initialize with a configuration dictionary.
     """
     def __init__(self, config):
         self.config = config
         self.servants = {}
-        self.listeners = {}
+        super(Butler, self).__init__()
 
     def get(self, name):
         return self.servants[name]
@@ -20,30 +46,12 @@ class Butler(object):
         config = self.config.get(name, None)
         self.servants[name] = servant_class(self, config)
 
-    def emit(self, event, *args, **kwds):
-        """Emit an event to the household."""
-        listeners = self.listeners.get(event, ())
-        for listener in listeners:
-            listener(*args, **kwds)
-
-    def on(self, event, f):
-        """Register a listener for an event."""
-        if event not in self.listeners:
-            self.listeners[event] = []
-        self.listeners[event].append(f)
-
-    def off(self, event, f):
-        """Unregister a listener for an event."""
-        if event in self.listeners:
-            self.listeners[event].remove(f)
-
     def call(self, method, *args, **kwds):
         """Call a method on another servant."""
-        servant_name, method_name = method.split('.')
+        servant_name, method_name = method.rsplit('.', 1)
         if method_name.startswith('_'):
             raise ValueError("cannot call hidden method '%s'" % method)
-        servant = self.get(servant_name)
-        return getattr(servant, method_name)(*args, **kwds)
+        return getattr(self.servants[servant_name], method_name)(*args, **kwds)
 
     def find(self, import_path):
         for module_name in werkzeug.utils.find_modules(import_path):

@@ -58,6 +58,12 @@ angular.module('server', [])
           callbacks[name] = [];
         }
         callbacks[name].push(f);
+      },
+
+      off: function(name, f) {
+        if (!callbacks[name]) return;
+        var i = callbacks[name].indexOf(f);
+        if (i != -1) callbacks[name].splice(i, 1);
       }
     };
   };

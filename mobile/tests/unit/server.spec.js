@@ -165,4 +165,21 @@ describe('service: server', function() {
     });
     expect(container.f).toHaveBeenCalledWith([1, 2], {x: 3});
   });
+
+  it('should remove callbacks on an event', function() {
+    container = {
+      f: function() {}
+    };
+
+    spyOn(container, 'f');
+
+    server.on('foo.bar', container.f);
+    server.off('foo.bar', container.f);
+    emit('event', {
+      name: 'foo.bar',
+      args: [1, 2],
+      kwds: {x: 3}
+    });
+    expect(container.f).not.toHaveBeenCalled();
+  });
 });

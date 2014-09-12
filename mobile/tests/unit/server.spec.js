@@ -1,6 +1,5 @@
 describe('service: server', function() {
-  var server_url = 'http://www.example.com',
-      $rootScope,
+  var $rootScope,
       server,
       socket,
       callbacks;
@@ -14,7 +13,7 @@ describe('service: server', function() {
 
   beforeEach(module('server'));
 
-  beforeEach(inject(function($window, _$rootScope_, _server_) {
+  beforeEach(inject(function($window) {
     callbacks = {}
     socket = {
       emit: function() {},
@@ -27,17 +26,14 @@ describe('service: server', function() {
     spyOn(socket, 'emit');
 
     $window.io = function(url) {
-      socket.url = url;
       return socket;
     };
-
-    $rootScope = _$rootScope_;
-    server = _server_(server_url);
   }));
 
-  it('should create socket to server', function() {
-    expect(socket.url).toEqual(server_url);
-  })
+  beforeEach(inject(function(_$rootScope_, _server_) {
+    $rootScope = _$rootScope_;
+    server = _server_;
+  }));
 
   it('should emit events on a socket', function() {
     server.emit('foo.bar', [1, 2], {x: 3});

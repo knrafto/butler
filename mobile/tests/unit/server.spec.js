@@ -52,7 +52,7 @@ describe('service: server', function() {
   });
 
   it('should send requests', function() {
-    server.request('foo.bar', [1, 2], {x: 3});
+    server.post('foo.bar', [1, 2], {x: 3});
     expect(socket.emit).toHaveBeenCalledWith('request', {
       id: 0,
       method: 'foo.bar',
@@ -60,7 +60,7 @@ describe('service: server', function() {
       kwds: {x: 3}
     });
 
-    server.request('foo.bar');
+    server.post('foo.bar');
     expect(socket.emit).toHaveBeenCalledWith('request', {
       id: 1,
       method: 'foo.bar',
@@ -82,9 +82,9 @@ describe('service: server', function() {
     spyOn(container, 'success2');
     spyOn(container, 'failure');
 
-    server.request('foo.bar').then(container.success0, container.failure);
-    server.request('foo.baz').then(container.success1, container.failure);
-    server.request('foo.quux').then(container.success2, container.failure);
+    server.post('foo.bar').then(container.success0, container.failure);
+    server.post('foo.baz').then(container.success1, container.failure);
+    server.post('foo.quux').then(container.success2, container.failure);
 
     emit('response', {
       id: 10,
@@ -129,8 +129,8 @@ describe('service: server', function() {
     spyOn(container, 'failure0');
     spyOn(container, 'failure1');
 
-    server.request('foo.bar').then(container.success, container.failure0);
-    server.request('foo.baz').then(container.success, container.failure1);
+    server.post('foo.bar').then(container.success, container.failure0);
+    server.post('foo.baz').then(container.success, container.failure1);
 
     emit('error', 'SomeError', 'bam');
     $rootScope.$apply();

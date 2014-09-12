@@ -38,7 +38,7 @@ angular.module('server', [])
       });
     },
 
-    request: function(method, args, kwds) {
+    post: function(method, args, kwds) {
       var requestId = nextId++,
           deferred = $q.defer();
       socket.emit('request', {

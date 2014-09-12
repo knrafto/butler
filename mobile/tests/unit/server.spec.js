@@ -231,6 +231,14 @@ describe('server', function() {
       });
     });
 
+    it('should subscribe only once', function() {
+      server.on('foo', one);
+      server.off('foo', one);
+      socket.emit.reset();
+      server.on('foo', one);
+      expect(socket.emit).not.toHaveBeenCalled();
+    });
+
     it('should register handers', function() {
       server.on('foo', one);
       server.emit('foo');

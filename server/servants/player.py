@@ -46,12 +46,15 @@ class Player(butler.Servant):
         self.history = []
         self.queue = []
 
-    def _emit_state(self):
-        self.emit('player.state',
+    def state(self):
+        return dict(
             playing=self.playing,
             current_track=self.current_track,
             history=self.history,
             queue=self.queue)
+
+    def _emit_state(self):
+        self.emit('player.state', **self.state())
 
     def _sync_player(self):
         """Load and play the current track, and prefetch the next."""

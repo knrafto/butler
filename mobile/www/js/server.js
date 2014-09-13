@@ -54,7 +54,7 @@ angular.module('server', [])
   return EventEmitter;
 })
 
-.factory('server', function(EventEmitter, $window, $q) {
+.factory('socketServer', function(EventEmitter, $window, $q) {
   return function(url) {
     var socket = $window.io.connect(url),
         nextId = 0,

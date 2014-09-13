@@ -100,7 +100,7 @@ describe('EventEmitter', function() {
   });
 });
 
-describe('server', function() {
+describe('socketServer', function() {
   var server_url = 'http://example.com:80',
       $rootScope, EventEmitter, calls, server, socket;
 
@@ -120,7 +120,7 @@ describe('server', function() {
 
   beforeEach(module('server'));
 
-  beforeEach(inject(function(_EventEmitter_, _server_, $window, _$rootScope_) {
+  beforeEach(inject(function(_EventEmitter_, _socketServer_, $window, _$rootScope_) {
     EventEmitter = _EventEmitter_;
     calls = [];
 
@@ -138,7 +138,7 @@ describe('server', function() {
     };
 
     $rootScope = _$rootScope_;
-    server = _server_(server_url);
+    server = _socketServer_(server_url);
   }));
 
   it('should use EventEmitter mixin', function() {

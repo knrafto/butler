@@ -1,15 +1,33 @@
-angular.module('player', ['server'])
+angular.module('player', ['server', 'ionic'])
 
-.controller('PlayerCtrl', function($scope, server) {
-  angular.extend($scope, {
-    playing: false,
-    current_track: null,
-    queue: [],
-    history: []
+.constant('SERVER_URL', 'http://localhost:26532')
+
+.factory('server', function(SERVER_URL, socketServer) {
+  return socketServer(SERVER_URL);
+})
+
+.config(function($stateProvider) {
+  $stateProvider.state('butler.player', {
+    url: '/player',
+    views: {
+      menuContent: {
+        templateUrl: 'templates/player.html',
+        controller: 'PlayerCtrl'
+      }
+    },
+    resolve: {
+      state: function(server) {
+        return server.post('player.state');
+      }
+    }
   });
+})
+
+.controller('PlayerCtrl', function($scope, server, state) {
+  $scope.state = state;
 
   function poller(args, kwds) {
-    angular.extend($scope, kwds);
+    $scope.state = kwds;
   }
 
   server.on('player.state', poller);
@@ -19,7 +37,7 @@ angular.module('player', ['server'])
   });
 })
 
-.controller('PlaybackCtrl', function($scope, $interval, server) {
+.controller('PlaybackCtrl', function($scope, server) {
   $scope.nextTrack = function() {
     server.post('player.next_track');
   };
@@ -29,7 +47,7 @@ angular.module('player', ['server'])
   };
 
   $scope.toggle = function() {
-    server.post('player.play', [!$scope.playing]);
+    server.post('player.play', [!$scope.state.playing]);
   };
 })
 

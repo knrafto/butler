@@ -2,6 +2,6 @@
   "name": "butler",
   "version": "0.1.0",
   "description": "Butler Server",
-  "devDependencies": {
+  "dependencies": {
   }
 }

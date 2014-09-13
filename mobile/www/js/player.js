@@ -2,8 +2,8 @@ angular.module('player', ['server', 'ionic'])
 
 .constant('SERVER_URL', 'http://localhost:26532')
 
-.factory('server', function(SERVER_URL, socketServer) {
-  return socketServer(SERVER_URL);
+.factory('server', function(SERVER_URL, serverFactory) {
+  return serverFactory(SERVER_URL);
 })
 
 .config(function($stateProvider) {

@@ -53,6 +53,30 @@ class ServerTestCase(unittest.TestCase):
             },)
         })
 
+        self.butler.call.side_effect = Exception('bam')
+        self.ns.process_event({
+            'type': 'event',
+            'name': 'request',
+            'args': [{
+                'method': 'foo.bar',
+                'id': 5,
+                'args': ['spam', 'eggs'],
+                'kwds': {'knights': 'ni'}
+            }]
+        })
+        self.assertFalse(self.socket.error.called)
+        self.butler.call.assert_called_with(
+            'foo.bar', 'spam', 'eggs', knights='ni')
+        self.socket.send_packet.assert_called_with({
+            'type': 'event',
+            'name': 'response',
+            'endpoint': '',
+            'args': ({
+                'id': 5,
+                'error': 'Exception: bam'
+            },)
+        })
+
     def test_subscribe(self):
         callbacks = []
         self.butler.on.side_effect = lambda event, f: callbacks.append(f)
@@ -68,10 +92,9 @@ class ServerTestCase(unittest.TestCase):
         callbacks[0]('spam', 'eggs', knights='ni')
 
     def test_error(self):
-        self.butler.call.side_effect = TypeError('bam')
         self.ns.process_event({
             'type': 'event',
-            'name': 'request',
+            'name': 'nothing',
             'args': [{
                 'method': 'foo.bar',
                 'id': 5,
@@ -80,6 +103,5 @@ class ServerTestCase(unittest.TestCase):
             }]
         })
         self.socket.error.assert_called_with(
-            'TypeError', 'bam', msg_id=None, endpoint='', quiet=False)
-        self.butler.call.assert_called_with(
-            'foo.bar', 'spam', 'eggs', knights='ni')
+            'ValueError', "unknown packet name 'nothing'",
+            msg_id=None, endpoint='', quiet=False)

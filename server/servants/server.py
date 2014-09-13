@@ -30,7 +30,7 @@ class Namespace(socketio.namespace.BaseNamespace):
         self.butler = self.request
         self.listeners = []
 
-    def disconnect(self):
+    def disconnect(self, silent):
         for event, listener in self.listeners:
             self.butler.off(event, listener)
 
@@ -39,23 +39,41 @@ class Namespace(socketio.namespace.BaseNamespace):
             name = packet['name']
             data = packet['args'][0]
             if name == 'event':
-                self.butler.emit(data['name'], *data['args'], **data['kwds'])
+                self._event(**data)
             elif name == 'request':
-                result = self.butler.call(
-                    data['method'], *data['args'], **data['kwds'])
-                self.emit('response', {
-                    'id': data['id'],
-                    'result': result
-                })
+                self._request(**data)
             elif name == 'subscribe':
-                event = data['name']
-                listener = functools.partial(self.notify, event)
-                self.listeners.append((event, listener))
-                self.butler.on(event, listener)
+                self._subscribe(**data)
             else:
                 raise ValueError("unknown packet name '%s'" % name)
         except Exception as e:
             self.error(e.__class__.__name__, str(e))
+
+    def _event(self, name, args=(), kwds=None):
+        if kwds is None:
+            kwds = {}
+        self.butler.emit(name, *args, **kwds)
+
+    def _request(self, id, method, args=(), kwds=None):
+        if kwds is None:
+            kwds = {}
+        try:
+            result = self.butler.call(method, *args, **kwds)
+        except Exception as e:
+            self.emit('response', {
+                'id': id,
+                'error': "%s: %s" % (e.__class__.__name__, str(e))
+            })
+        else:
+            self.emit('response', {
+                'id': id,
+                'result': result
+            })
+
+    def _subscribe(self, name):
+        listener = functools.partial(self.notify, name)
+        self.listeners.append((name, listener))
+        self.butler.on(name, listener)
 
     def notify(self, event, *args, **kwds):
         self.emit('event', {

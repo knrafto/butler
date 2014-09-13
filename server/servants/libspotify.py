@@ -169,7 +169,7 @@ class Spotify(butler.Servant):
         """Add a track or set from a link"""
         self._guard()
         if not uri:
-            raise BadRequest('a uri or url is required')
+            raise ValueError('a uri or url is required')
         with gevent.Timeout(self._timeout):
             link = self._session.get_link(uri)
             if link.type == spotify.LinkType.TRACK:
@@ -191,15 +191,15 @@ class Spotify(butler.Servant):
         result = gevent.event.AsyncResult()
 
         def search_loaded(search):
-            if error_type != spotify.ErrorType.OK:
+            if search.error != spotify.ErrorType.OK:
                 result.set_exception(spotify.LibError(error_type))
             else:
-                result.set(None)
+                result.set(search)
 
-        try:
-            self._session.search(query, callback=search_loaded, **kwds)
-        except TypeError:
-            raise BadRequest('bad parameters')
+        self._session.search(query, callback=search_loaded, **kwds)
         with gevent.Timeout(self._timeout):
             search = result.get()
-            # TODO
+            return {
+                'query': query,
+                'tracks': [track.link.uri for track in search.tracks]
+            }

@@ -1,5 +1,11 @@
 angular.module('server', [])
 
+.constant('SERVER_URL', 'http://localhost:26532')
+
+.factory('server', function(SERVER_URL, serverFactory) {
+  return serverFactory(SERVER_URL);
+})
+
 .factory('EventEmitter', function() {
   function EventEmitter(obj) {
     if (obj) {

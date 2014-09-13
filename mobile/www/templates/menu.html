@@ -12,9 +12,9 @@
       <h1 class="title">Duties</h1>
     </header>
     <ion-content class="has-header" scroll="false">
-      <ion-list>
-        <ion-item nav-clear menu-close href="#/butler/player">
-          Player
+      <ion-list ng-repeat="duty in duties">
+        <ion-item nav-clear menu-close ng-href="#/butler/{{duty}}">
+          {{duty | capitalize}}
         </ion-item>
       </ion-list>
     </ion-content>

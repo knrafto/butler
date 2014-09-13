@@ -106,16 +106,14 @@ angular.module('server', [])
     socket.on('response', function(data) {
       var deferred = pendingRequests[data.id];
       if (deferred) {
-        deferred.resolve(data.result);
+        if (data.result) {
+          deferred.resolve(data.result);
+        } else {
+          error = data.error || "unknown error";
+          deferred.reject(new Error(error));
+        }
         delete pendingRequests[data.id];
       }
-    });
-
-    socket.on('error', function(error_name, error_message) {
-      angular.forEach(pendingRequests, function(deferred) {
-        deferred.reject(error_name + ': ' + error_message);
-      });
-      pendingRequests = {};
     });
 
     socket.on('event', function(data) {

@@ -130,9 +130,11 @@ describe('server', function() {
     socket.emit = null;
     spyOn(socket, 'emit');
 
-    $window.io = function(url) {
-      expect(url).toEqual(server_url);
-      return socket;
+    $window.io = {
+      connect: function(url) {
+        expect(url).toEqual(server_url);
+        return socket;
+      }
     };
 
     $rootScope = _$rootScope_;

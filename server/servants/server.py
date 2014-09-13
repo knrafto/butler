@@ -15,16 +15,15 @@ class Server(butler.Servant):
         super(Server, self).__init__(butler, config)
         address = config.get('address', '127.0.0.1:26532')
         server = socketio.server.SocketIOServer(
-            address, self._respond, resource="socket.io")
+            address, self._respond, policy_server=False)
         gevent.spawn(server.serve_forever())
 
     def _respond(self, environ, start_response):
-        path = environ['PATH_INFO'].strip('/')
-        if path.startswith("socket.io"):
+        if environ['PATH_INFO'].startswith('/socket.io'):
             socketio.socketio_manage(environ, {'': Namespace}, self.butler)
         else:
             start_response('404 Not Found', [])
-            return ()
+        return ()
 
 class Namespace(socketio.namespace.BaseNamespace):
     def initialize(self):

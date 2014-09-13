@@ -56,7 +56,7 @@ angular.module('server', [])
 
 .factory('server', function(EventEmitter, $window, $q) {
   return function(url) {
-    var socket = $window.io(url),
+    var socket = $window.io.connect(url),
         nextId = 0,
         pendingRequests = {},
         subscribed = {};

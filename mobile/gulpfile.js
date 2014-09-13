@@ -15,23 +15,19 @@ var paths = {
 gulp.task('default', ['sass', 'test']);
 
 gulp.task('test', function() {
+  var action = gulp.env.watch ? 'watch' : 'run';
   return gulp.src('failed-match-*')
     .pipe(karma({
       configFile: 'karma.conf.js',
-      action: 'run'
-    }));
-});
-
-gulp.task('test-watch', function() {
-  return gulp.src('failed-match-*')
-    .pipe(karma({
-      configFile: 'karma.conf.js',
-      action: 'watch'
+      action: action
     }));
 });
 
 gulp.task('sass', function(done) {
-  gulp.src('./scss/ionic.app.scss')
+  if (gulp.env.watch) {
+    return gulp.watch(paths.sass, ['sass']);
+  }
+  return gulp.src('./scss/ionic.app.scss')
     .pipe(sass())
     .pipe(gulp.dest('./www/css/'))
     .pipe(minifyCss({
@@ -40,10 +36,6 @@ gulp.task('sass', function(done) {
     .pipe(rename({ extname: '.min.css' }))
     .pipe(gulp.dest('./www/css/'))
     .on('end', done);
-});
-
-gulp.task('sass-watch', function() {
-  gulp.watch(paths.sass, ['sass']);
 });
 
 gulp.task('install', ['git-check'], function() {

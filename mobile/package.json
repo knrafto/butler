@@ -1,6 +1,6 @@
 {
   "name": "butler-mobile",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Butler Mobile Client",
   "devDependencies": {
     "bower": "^1.3.9",

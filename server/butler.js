@@ -1,32 +1,90 @@
-var EventEmitter = require('events').EventEmitter;
-var util = require('util');
+var _ = require('underscore');
 
-function Butler(config) {
-  this.config = config || {};
-  this.servants = {};
+function walk(name) {
+  var prefix = [];
+  var prefixes = [''];
+  _.each(name.split('.'), function(namePart) {
+    prefix.push(namePart);
+    prefixes.push(prefix.join('.'));
+  });
+  return prefixes;
 }
 
-Butler.prototype = {
-  hire: function(servant) {
-    var name = servant.name;
-    var config = this.config[name] || {};
-    this.servants[name] = new servant(this, config);
+function notFound(name) {
+  throw new Error('no delegate for method "' + name + '"');
+}
+
+var Butler = exports.Butler = {
+
+  on: function(name, fn) {
+    if (!fn) {
+      fn = name;
+      name = '';
+    }
+    this._events || (this._events = {});
+    var events = this._events[name] || (this._events[name] = []);
+    events.push(fn);
+    return this;
   },
 
-  call: function(method) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    var split = method.split('.')
-    if (split.length != 2 || !split[0] || !split[1] ||
-        split[1].charAt(0) === '_') {
-      throw new Error('malformed or invalid method name "' + method + '"');
+  off: function(name, fn) {
+    if (!fn) {
+      fn = name;
+      name = '';
     }
-    var servant = this.servants[split[0]];
-    return servant[split[1]].apply(servant, args);
+    var events = this._events && this._events[name];
+    if (events) {
+      var i = events.indexOf(fn);
+      if (i > -1) events.splice(i, 1);
+    }
+    return this;
+  },
+
+  emit: function(name) {
+    var events = this._events;
+    if (!events) return this;
+    var context = { event: name };
+    var args = _.toArray(arguments).slice(1);
+    var fns = _.chain(walk(name))
+      .map(function(prefix) { return events[prefix]; })
+      .compact()
+      .flatten()
+      .value();
+    _.each(_.toArray(fns), function(fn) {
+      fn.apply(context, args);
+    });
+  },
+
+  register: function(name, fn) {
+    if (!fn) {
+      fn = name;
+      name = '';
+    }
+    this._delegates || (this._delegates = {});
+    this._delegates[name] = fn;
+    return this;
+  },
+
+  unregister: function(name) {
+    if (!name) name = '';
+    if (!this._delegates) return this;
+    delete this._delegates[name];
+    return this;
+  },
+
+  call: function(name) {
+    var delegates = this._delegates;
+    if (!delegates) notFound(name);
+    var context = { method: name };
+    var args = _.toArray(arguments).slice(1);
+    var delegate = _.chain(walk(name))
+      .map(function(prefix) { return delegates[prefix]; })
+      .find(_.identity)
+      .value();
+    if (!delegate) notFound(name);
+    return delegate.apply(context, args);
   }
-};
 
-util.inherits(Butler, EventEmitter);
+}
 
-module.exports = {
-  Butler: Butler
-};
+exports.butler = _.clone(Butler);

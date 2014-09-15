@@ -3,5 +3,7 @@
   "version": "0.1.0",
   "description": "Butler Server",
   "dependencies": {
+    "process": "^0.8.0",
+    "underscore": "^1.7.0"
   }
 }

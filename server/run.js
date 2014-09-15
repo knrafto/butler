@@ -1,20 +1,16 @@
 var fs = require('fs');
 var process = require('process');
+var _ = require('underscore');
 
-var butler = require('./butler');
-var servants = require('./servants');
+var services = require('./services');
 
 var config_path = process.env['HOME'] + '/.config/butler/butler.cfg';
 
 fs.readFile(config_path, 'utf8', function(err, data) {
-  if (err) {
-    console.log('Error: ' + err);
-    return;
-  }
-
+  if (err) throw err;
   var config = JSON.parse(data);
-  var butler = new butler.Butler(config);
-  servants.all.forEach(function(servant) {
-    butler.hire(servant);
+  _.each(services.all, function(service) {
+    var name = service.name;
+    service.start(config[name]);
   });
 });

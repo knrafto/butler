@@ -1,9 +1,9 @@
 var _ = require('underscore');
 
-var Butler = require('../butler').Butler;
+var Bus = require('../bus');
 
-describe('Butler', function() {
-  var butler, calls;
+describe('Bus', function() {
+  var bus, calls;
 
   function one() {
     calls.push(['one'].concat(_.toArray(arguments)));
@@ -16,27 +16,27 @@ describe('Butler', function() {
   }
 
   beforeEach(function() {
-    butler = _.clone(Butler);
+    bus = _.clone(Bus);
     calls = [];
   });
 
   describe('.on([name], fn)', function() {
     it('should add listeners', function() {
-      butler.on('foo', one);
-      butler.on('foo', two);
+      bus.on('foo', one);
+      bus.on('foo', two);
 
-      butler.emit('foo', 1);
-      butler.emit('bar', 1);
-      butler.emit('foo', 2);
+      bus.emit('foo', 1);
+      bus.emit('bar', 1);
+      bus.emit('foo', 2);
 
       expect(calls).toEqual([['one', 1], ['two', 1], ['one', 2], ['two', 2]]);
     });
 
     it('should add listeners for all events', function() {
-      butler.on(one);
+      bus.on(one);
 
-      butler.emit('foo', 1);
-      butler.emit('bar', 2);
+      bus.emit('foo', 1);
+      bus.emit('bar', 2);
 
       expect(calls).toEqual([['one', 1], ['one', 2]]);
     });
@@ -44,72 +44,72 @@ describe('Butler', function() {
 
   describe('.off([name], fn)', function() {
     it('should remove listeners', function() {
-      butler.on('foo', one);
-      butler.on('foo', two);
-      butler.off('foo', two);
+      bus.on('foo', one);
+      bus.on('foo', two);
+      bus.off('foo', two);
 
-      butler.emit('foo');
+      bus.emit('foo');
 
       expect(calls).toEqual([['one']]);
     });
 
     it('should remove listeners for all events', function() {
-      butler.on(one);
-      butler.on(two);
-      butler.off(two);
+      bus.on(one);
+      bus.on(two);
+      bus.off(two);
 
-      butler.emit('foo');
+      bus.emit('foo');
 
       expect(calls).toEqual([['one']]);
     });
 
     it('should work when called from an event', function() {
-      butler.on('foo', function() {
-        butler.off('foo.bar', one);
+      bus.on('foo', function() {
+        bus.off('foo.bar', one);
       });
-      butler.on('foo.bar', one);
-      butler.emit('foo.bar');
+      bus.on('foo.bar', one);
+      bus.emit('foo.bar');
       expect(calls).toEqual([['one']]);
-      butler.emit('foo.bar');
+      bus.emit('foo.bar');
       expect(calls).toEqual([['one']]);
     });
   });
 
   describe('.emit(name, *args)', function() {
     it('should fire all listeners', function() {
-      butler.on(one);
-      butler.on('foo', two);
-      butler.on('foo.bar', one);
-      butler.on('foo.baz', two);
+      bus.on(one);
+      bus.on('foo', two);
+      bus.on('foo.bar', one);
+      bus.on('foo.baz', two);
 
-      butler.emit('foo.bar', 1);
+      bus.emit('foo.bar', 1);
 
       expect(calls).toEqual([['one', 1], ['two', 1], ['one', 1]]);
     });
 
     it('should set the listener context', function() {
-      butler.on('foo', function() {
+      bus.on('foo', function() {
         expect(this.event).toBe('foo.bar');
       });
 
-      butler.emit('foo.bar');
+      bus.emit('foo.bar');
     });
   });
 
   describe('.register([name], fn)', function() {
     it('should set a delegate', function() {
-      butler.register('foo', one);
-      butler.register('foo', two);
+      bus.register('foo', one);
+      bus.register('foo', two);
 
-      var result = butler.call('foo', 1);
+      var result = bus.call('foo', 1);
       expect(result).toEqual('two');
       expect(calls).toEqual([['two', 1]]);
     });
 
     it('should set a delegate for all methods', function() {
-      butler.register(one);
+      bus.register(one);
 
-      var results = [butler.call('foo', 1), butler.call('bar', 2)];
+      var results = [bus.call('foo', 1), bus.call('bar', 2)];
       expect(results).toEqual(['one', 'one']);
       expect(calls).toEqual([['one', 1], ['one', 2]]);
     });
@@ -117,20 +117,20 @@ describe('Butler', function() {
 
   describe('.unregister([name], fn)', function() {
     it('should remove a delegate', function() {
-      butler.register('foo', one);
-      butler.unregister('foo');
+      bus.register('foo', one);
+      bus.unregister('foo');
 
       expect(function() {
-        butler.call('foo');
+        bus.call('foo');
       }).toThrow(new Error('no delegate for method "foo"'));
     });
 
     it('should remove a delegate for all methods', function() {
-      butler.register(one);
-      butler.unregister();
+      bus.register(one);
+      bus.unregister();
 
       expect(function() {
-        butler.call('foo');
+        bus.call('foo');
       }).toThrow(new Error('no delegate for method "foo"'));
     });
   });
@@ -139,13 +139,13 @@ describe('Butler', function() {
     it('should fire the first delegate', function() {
       var results = [];
 
-      butler.register('foo.bar', one);
-      butler.register('foo.baz', two);
-      results.push(butler.call('foo.bar', 1));
-      butler.register('foo', two);
-      results.push(butler.call('foo.bar', 2));
-      butler.register(one);
-      results.push(butler.call('foo.bar', 3));
+      bus.register('foo.bar', one);
+      bus.register('foo.baz', two);
+      results.push(bus.call('foo.bar', 1));
+      bus.register('foo', two);
+      results.push(bus.call('foo.bar', 2));
+      bus.register(one);
+      results.push(bus.call('foo.bar', 3));
 
       expect(results).toEqual(['one', 'two', 'one']);
       expect(calls).toEqual([['one', 1], ['two', 2], ['one', 3]]);
@@ -153,17 +153,16 @@ describe('Butler', function() {
 
     it('should throw an Error if no delegate is found', function() {
       expect(function() {
-        butler.call('foo');
+        bus.call('foo');
       }).toThrow(new Error('no delegate for method "foo"'));
     });
 
     it('should set the listener context', function() {
-      butler.register('foo', function() {
+      bus.register('foo', function() {
         expect(this.method).toBe('foo.bar');
       });
 
-      butler.call('foo.bar');
+      bus.call('foo.bar');
     });
   });
-
 });

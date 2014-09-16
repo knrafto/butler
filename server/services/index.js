@@ -1,1 +1,3 @@
-exports.all = [];
+exports.all = [
+  require('./server')
+];

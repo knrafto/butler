@@ -8,7 +8,7 @@ function serve(port, hostname) {
   var server = require('socket.io')(http, { serveClient: false });
   http.listen(port, hostname);
 
-  server.on('connection', function(socket) {
+  server.on('connect', function(socket) {
     socket.on('request', function(request) {
       handle(request).done(function(response) {
         socket.emit('response', response);
@@ -26,8 +26,7 @@ function serve(port, hostname) {
 
 function handle(request) {
   return Q['try'](function() {
-    var args = [request.method].concat(request.params);
-    return butler.call.apply(butler, args);
+    return butler.call.apply(butler, [request.method].concat(request.params));
   }).then(function(result) {
     return {
       result: result,

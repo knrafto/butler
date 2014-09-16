@@ -58,7 +58,7 @@ describe('server', function() {
     server.on('event', callbacks.f);
 
     service.start();
-    server.emit('connection', socket);
+    server.emit('connect', socket);
     butler.emit('foo', 1, 2)
 
     expect(callbacks.f).toHaveBeenCalledWith({
@@ -69,7 +69,7 @@ describe('server', function() {
 
   it('should respond to requests', function() {
     service.start();
-    server.emit('connection', socket);
+    server.emit('connect', socket);
     socket.on('response', callbacks.f);
 
     butler.register('foo', function() {
@@ -91,7 +91,7 @@ describe('server', function() {
 
   it('should handle errors', function() {
     service.start();
-    server.emit('connection', socket);
+    server.emit('connect', socket);
     socket.on('response', callbacks.f);
 
     butler.register('foo', function() {
@@ -125,7 +125,7 @@ describe('server', function() {
 
   it('should resolve promises', function() {
     service.start();
-    server.emit('connection', socket);
+    server.emit('connect', socket);
     socket.on('response', callbacks.f);
 
     butler.register('foo', function() {

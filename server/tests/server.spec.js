@@ -4,27 +4,21 @@ var Q = require('q');
 var _ = require('underscore');
 
 describe('server', function() {
-  var butler, httpServer, server, socket, http, service, callbacks;
+  var httpServer, server, socket, butler, http, io, service;
 
   beforeEach(function() {
-    butler = _.clone(require('../bus'));
-
-    httpServer = {
-      listen: _.noop
-    };
+    httpServer = { listen: jasmine.createSpy('listen') };
 
     server = new EventEmitter;
     socket = new EventEmitter;
 
+    butler = _.clone(require('../bus'));
+
     http = {
-      createServer: _.constant(httpServer)
+      createServer: jasmine.createSpy('createServer').andReturn(httpServer)
     };
 
-    function io(srv, opts) {
-      expect(srv).toBe(httpServer);
-      expect(opts).toEqual({ serveClient: false });
-      return server;
-    };
+    io = jasmine.createSpy().andReturn(server);
 
     service = proxyquire('../services/server', {
       '../butler': butler,
@@ -32,45 +26,46 @@ describe('server', function() {
       'socket.io': io
     });
 
-    callbacks = { f: null };
-    spyOn(callbacks, 'f');
-
     // for Q
     spyOn(require('process'), 'nextTick').andCallFake(function(fn) { fn(); });
   });
 
-  it('should have the name "server"', function() {
+  it('should be named "server"', function() {
     expect(service.name).toBe('server');
   });
 
   it('should start an HTTP server', function() {
-    spyOn(httpServer, 'listen');
-
     service.start({
       hostname: 'www.example.com',
       port: 9876
     });
 
+    expect(http.createServer).toHaveBeenCalledWith();
     expect(httpServer.listen).toHaveBeenCalledWith(9876, 'www.example.com');
+    expect(io).toHaveBeenCalledWith(httpServer, { serveClient: false });
   });
 
   it('should send events', function() {
-    server.on('event', callbacks.f);
+    var one = jasmine.createSpy('one');
+
+    server.on('event', one);
 
     service.start();
     server.emit('connect', socket);
     butler.emit('foo', 1, 2)
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       name: 'foo',
       params: [1, 2]
     });
   });
 
   it('should respond to requests', function() {
+    var one = jasmine.createSpy('one');
+
     service.start();
     server.emit('connect', socket);
-    socket.on('response', callbacks.f);
+    socket.on('response', one);
 
     butler.register('foo', function() {
       return 'bar';
@@ -82,7 +77,7 @@ describe('server', function() {
       id: 10
     });
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       result: 'bar',
       error: null,
       id: 10
@@ -90,9 +85,11 @@ describe('server', function() {
   });
 
   it('should handle errors', function() {
+    var one = jasmine.createSpy('one');
+
     service.start();
     server.emit('connect', socket);
-    socket.on('response', callbacks.f);
+    socket.on('response', one);
 
     butler.register('foo', function() {
       throw new Error('boom');
@@ -104,7 +101,7 @@ describe('server', function() {
       id: 10
     });
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       result: null,
       error: Error('boom'),
       id: 10
@@ -116,7 +113,7 @@ describe('server', function() {
       id: 10
     });
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       result: null,
       error: Error('no delegate for method "bar"'),
       id: 10
@@ -124,9 +121,11 @@ describe('server', function() {
   });
 
   it('should resolve promises', function() {
+    var one = jasmine.createSpy('one');
+
     service.start();
     server.emit('connect', socket);
-    socket.on('response', callbacks.f);
+    socket.on('response', one);
 
     butler.register('foo', function() {
       return Q('bar');
@@ -138,7 +137,7 @@ describe('server', function() {
       id: 10
     });
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       result: 'bar',
       error: null,
       id: 10
@@ -154,7 +153,7 @@ describe('server', function() {
       id: 10
     });
 
-    expect(callbacks.f).toHaveBeenCalledWith({
+    expect(one).toHaveBeenCalledWith({
       result: null,
       error: Error('boom'),
       id: 10

@@ -3,88 +3,102 @@ var _ = require('underscore');
 var Bus = require('../bus');
 
 describe('Bus', function() {
-  var bus, calls;
-
-  function one() {
-    calls.push(['one'].concat(_.toArray(arguments)));
-    return 'one';
-  }
-
-  function two() {
-    calls.push(['two'].concat(_.toArray(arguments)));
-    return 'two';
-  }
+  var bus;
 
   beforeEach(function() {
     bus = _.clone(Bus);
-    calls = [];
   });
 
   describe('.on([name], fn)', function() {
     it('should add listeners', function() {
+      var one = jasmine.createSpy('one');
+      var two = jasmine.createSpy('two');
+
       bus.on('foo', one);
       bus.on('foo', two);
 
       bus.emit('foo', 1);
+      expect(one).toHaveBeenCalledWith(1);
+      expect(two).toHaveBeenCalledWith(1);
+
       bus.emit('bar', 1);
       bus.emit('foo', 2);
-
-      expect(calls).toEqual([['one', 1], ['two', 1], ['one', 2], ['two', 2]]);
+      expect(one).toHaveBeenCalledWith(2);
+      expect(two).toHaveBeenCalledWith(2);
     });
 
     it('should add listeners for all events', function() {
+      var one = jasmine.createSpy('one');
+
       bus.on(one);
 
       bus.emit('foo', 1);
+      expect(one).toHaveBeenCalledWith(1);
       bus.emit('bar', 2);
-
-      expect(calls).toEqual([['one', 1], ['one', 2]]);
+      expect(one).toHaveBeenCalledWith(2);
     });
   });
 
   describe('.off([name], fn)', function() {
     it('should remove listeners', function() {
+      var one = jasmine.createSpy('one');
+      var two = jasmine.createSpy('two');
+
       bus.on('foo', one);
       bus.on('foo', two);
       bus.off('foo', two);
 
       bus.emit('foo');
-
-      expect(calls).toEqual([['one']]);
+      expect(one).toHaveBeenCalledWith();
+      expect(two).not.toHaveBeenCalled();
     });
 
     it('should remove listeners for all events', function() {
+      var one = jasmine.createSpy('one');
+      var two = jasmine.createSpy('two');
+
       bus.on(one);
       bus.on(two);
       bus.off(two);
 
       bus.emit('foo');
-
-      expect(calls).toEqual([['one']]);
+      expect(one).toHaveBeenCalledWith();
+      expect(two).not.toHaveBeenCalled();
     });
 
     it('should work when called from an event', function() {
+      var one = jasmine.createSpy('one');
+
       bus.on('foo', function() {
         bus.off('foo.bar', one);
       });
       bus.on('foo.bar', one);
+
       bus.emit('foo.bar');
-      expect(calls).toEqual([['one']]);
+      expect(one).toHaveBeenCalledWith();
+      one.reset();
       bus.emit('foo.bar');
-      expect(calls).toEqual([['one']]);
+      expect(one).not.toHaveBeenCalled();
     });
   });
 
   describe('.emit(name, *args)', function() {
     it('should fire all listeners', function() {
+      var one = jasmine.createSpy('one');
+      var two = jasmine.createSpy('two');
+      var three = jasmine.createSpy('three');
+      var four = jasmine.createSpy('four');
+
       bus.on(one);
       bus.on('foo', two);
-      bus.on('foo.bar', one);
-      bus.on('foo.baz', two);
+      bus.on('foo.bar', three);
+      bus.on('foo.baz', four);
 
       bus.emit('foo.bar', 1);
-
-      expect(calls).toEqual([['one', 1], ['two', 1], ['one', 1]]);
+      expect(one).toHaveBeenCalledWith(1);
+      expect(two).toHaveBeenCalledWith(1);
+      expect(three).toHaveBeenCalledWith(1);
+      expect(four).not.toHaveBeenCalled();
     });
 
     it('should set the listener context', function() {
@@ -98,26 +112,29 @@ describe('Bus', function() {
 
   describe('.register([name], fn)', function() {
     it('should set a delegate', function() {
+      var one = jasmine.createSpy('one').andReturn('one');
+      var two = jasmine.createSpy('two').andReturn('two');
+
       bus.register('foo', one);
       bus.register('foo', two);
 
       var result = bus.call('foo', 1);
       expect(result).toEqual('two');
-      expect(calls).toEqual([['two', 1]]);
+      expect(one).not.toHaveBeenCalled();
+      expect(two).toHaveBeenCalledWith(1);
     });
 
     it('should set a delegate for all methods', function() {
-      bus.register(one);
+      bus.register(function() { return 'one'; });
 
       var results = [bus.call('foo', 1), bus.call('bar', 2)];
       expect(results).toEqual(['one', 'one']);
-      expect(calls).toEqual([['one', 1], ['one', 2]]);
     });
   });
 
   describe('.unregister([name], fn)', function() {
     it('should remove a delegate', function() {
-      bus.register('foo', one);
+      bus.register('foo', function() {});
       bus.unregister('foo');
 
       expect(function() {
@@ -126,7 +143,7 @@ describe('Bus', function() {
     });
 
     it('should remove a delegate for all methods', function() {
-      bus.register(one);
+      bus.register(function() {});
       bus.unregister();
 
       expect(function() {
@@ -136,19 +153,25 @@ describe('Bus', function() {
   });
 
   describe('.call(name, *args)', function() {
-    it('should fire the first delegate', function() {
+    it('should fire the last delegate', function() {
+      var one = jasmine.createSpy('one').andReturn('one');
+      var two = jasmine.createSpy('two').andReturn('two');
+      var three = jasmine.createSpy('three').andReturn('three');
+      var four = jasmine.createSpy('four').andReturn('four');
+
       var results = [];
 
-      bus.register('foo.bar', one);
-      bus.register('foo.baz', two);
-      results.push(bus.call('foo.bar', 1));
-      bus.register('foo', two);
-      results.push(bus.call('foo.bar', 2));
       bus.register(one);
-      results.push(bus.call('foo.bar', 3));
+      bus.register('foo', two);
+      bus.register('foo.bar', three);
+      bus.register('foo.baz', four);
+      var results = [bus.call('foo', 1), bus.call('foo.bar.baz', 2)];
 
-      expect(results).toEqual(['one', 'two', 'one']);
-      expect(calls).toEqual([['one', 1], ['two', 2], ['one', 3]]);
+      expect(results).toEqual(['two', 'three']);
+      expect(one).not.toHaveBeenCalled();
+      expect(two).toHaveBeenCalledWith(1);
+      expect(three).toHaveBeenCalledWith(2);
+      expect(four).not.toHaveBeenCalled();
     });
 
     it('should throw an Error if no delegate is found', function() {

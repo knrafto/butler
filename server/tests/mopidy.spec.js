@@ -66,5 +66,7 @@ describe('mopidy', function() {
     var result = butler.call('mopidy.foo.bar', { baz: 'baz' });
     expect(one).toHaveBeenCalledWith({ baz: 'baz' });
     expect(result).toEqual('one');
+    butler.call('mopidy.foo.bar');
+    expect(one).toHaveBeenCalledWith({});
   });
 });

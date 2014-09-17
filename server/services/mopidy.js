@@ -18,7 +18,7 @@ exports.start = function(config) {
     _.each(this.method.split('.').slice(1), function(part) {
       obj = obj[part];
     });
-    return obj(params);
+    return obj(params || {});
   });
 
   mopidy.on(function(name) {

@@ -3,9 +3,10 @@ var _ = require('underscore');
 
 var butler = require('../butler');
 
-function serve(port, hostname) {
+exports.start = function(config) {
+  config = config || {};
   var server = new http.Server;
-  server.listen(port, hostname, function() {
+  server.listen(config.port, config.hostname, function() {
     butler.on('exit', function() {
       server.close();
     });
@@ -18,11 +19,4 @@ function serve(port, hostname) {
   server.on('error', function() {
     butler.emit('error', 'server', err);
   });
-}
-
-module.exports = {
-  start: function(config) {
-    config = config || {};
-    serve(config.port, config.hostname);
-  }
 };

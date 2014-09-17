@@ -1,6 +1,3 @@
-var Q = require('q');
-var _ = require('underscore');
-
 var butler = require('../butler')
 var service = require('../services/server');
 

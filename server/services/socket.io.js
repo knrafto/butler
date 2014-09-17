@@ -4,7 +4,10 @@ var _ = require('underscore');
 
 var butler = require('../butler');
 
-function serve(port, hostname) {
+
+exports.depends = ['server'];
+
+exports.start = function() {
   var server = io(butler.call('server'), { serveClient: false });
 
   server.on('connection', function(socket) {
@@ -22,7 +25,7 @@ function serve(port, hostname) {
       params: _.toArray(arguments)
     });
   });
-}
+};
 
 function handle(request) {
   return Q['try'](function() {
@@ -42,11 +45,3 @@ function handle(request) {
     };
   });
 }
-
-module.exports = {
-  depends: ['server'],
-
-  start: function() {
-    serve();
-  }
-};

@@ -1,4 +1,4 @@
-angular.module('app', ['ionic'])
+angular.module('app', ['mopidy', 'ionic'])
 
 .config(function($stateProvider) {
   $stateProvider.state('app', {

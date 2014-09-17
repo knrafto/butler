@@ -8,11 +8,10 @@ exports.start = function() {
   });
 
   process.on('SIGINT', function() {
-    process.exit();
+    process.exit(0);
   });
 
   process.on('uncaughtException', function(err) {
-    console.log(err.stack);
     process.exit(1);
   });
 }

@@ -1,8 +1,8 @@
-angular.module('server', ['underscore'])
+angular.module('butler', ['underscore'])
 
 .constant('SERVER_URL', 'http://localhost:26532')
 
-.factory('socket.io', function($window, SERVER_URL) {
+.factory('socket', function($window, SERVER_URL) {
   return $window.io.connect(url);
 })
 
@@ -86,6 +86,7 @@ angular.module('server', ['underscore'])
   socket.on('response', resolve);
 
   socket.on('event', function(event) {
+    console.log(event);
     emit(event.event, event.params);
   });
 

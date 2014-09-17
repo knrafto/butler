@@ -3,7 +3,7 @@ angular.module('butler', ['underscore'])
 .constant('SERVER_URL', 'http://localhost:26532')
 
 .factory('socket', function($window, SERVER_URL) {
-  return $window.io.connect(url);
+  return $window.io(SERVER_URL);
 })
 
 .factory('butler', function(socket, $q, _) {

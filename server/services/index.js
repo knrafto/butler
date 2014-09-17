@@ -1,5 +1,9 @@
 var _ = require('underscore');
 
+var services = [
+  'console', 'exit', 'mopidy', 'server', 'socket.io'
+];
+
 exports.start = function(config) {
   var started = {};
   var starting = {};
@@ -19,7 +23,7 @@ exports.start = function(config) {
     started[name] = true;
   }
 
-  _.each(config, function(config, name) {
+  _.each(services, function(name) {
     start(name);
   });
 }

@@ -29,7 +29,7 @@ describe('server', function() {
     service.start();
     server.on('event', function(event) {
       expect(event).toEqual({
-        name: 'foo',
+        event: 'foo',
         params: [1, 2]
       });
       done();

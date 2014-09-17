@@ -21,7 +21,7 @@ exports.start = function() {
   butler.on(function() {
     // TODO: ensure objects are serializable first
     server.emit('event', {
-      name: this.event,
+      event: this.event,
       params: _.toArray(arguments)
     });
   });

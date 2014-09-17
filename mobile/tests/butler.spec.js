@@ -1,3 +1,4 @@
+// TODO: $rootScope.$apply()
 describe('butler', function() {
   var $window, $rootScope, butler, socket;
 

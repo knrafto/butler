@@ -1,12 +1,12 @@
 angular.module('butler', ['underscore'])
 
-.constant('SERVER_URL', 'http://localhost:26532')
+.constant('SERVER_URL', 'http://127.0.0.1:26532')
 
 .factory('socket', function($window, SERVER_URL) {
   return $window.io(SERVER_URL);
 })
 
-.factory('butler', function(socket, $q, _) {
+.factory('butler', function($rootScope, $q, socket, _) {
   var nextId = 0;
   var pendingRequests = {};
   var _events = {};
@@ -31,6 +31,7 @@ angular.module('butler', ['underscore'])
       }
       delete pendingRequests[response.id];
     }
+    $rootScope.$apply();
   }
 
   function emit(name, args) {
@@ -43,6 +44,7 @@ angular.module('butler', ['underscore'])
     _.each(_.toArray(fns), function(fn) {
       fn.apply(context, args);
     });
+    $rootScope.$apply();
   }
 
   var butler = {
@@ -86,7 +88,6 @@ angular.module('butler', ['underscore'])
   socket.on('response', resolve);
 
   socket.on('event', function(event) {
-    console.log(event);
     emit(event.event, event.params);
   });
 

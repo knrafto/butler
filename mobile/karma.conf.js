@@ -10,6 +10,7 @@ module.exports = function(config){
       'www/lib/ionic/js/ionic.js',
       'www/lib/ionic/js/ionic-angular.min.js',
       'www/lib/underscore/underscore.js',
+      '../common/*.js',
       'www/js/*.js',
       'tests/*.spec.js',
       'www/templates/*.html'

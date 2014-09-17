@@ -1,4 +1,4 @@
-angular.module('mopidy', ['butler', 'ui.router'])
+angular.module('mopidy', ['butler', 'server', 'ui.router', 'underscore'])
 
 .config(function($stateProvider) {
   $stateProvider.state('app.mopidy', {

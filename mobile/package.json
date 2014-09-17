@@ -12,7 +12,7 @@
     "gulp-sass": "^0.7.3",
     "gulp-util": "^3.0.1",
     "karma": "^0.12.23",
-    "karma-jasmine": "^0.1.5",
+    "karma-jasmine": "^0.2.2",
     "karma-ng-html2js-preprocessor": "^0.1.0",
     "karma-phantomjs-launcher": "^0.1.4",
     "shelljs": "^0.3.0"

@@ -9,6 +9,7 @@ module.exports = function(config){
       'www/lib/angular-ui-router/release/angular-ui-router.js',
       'www/lib/ionic/js/ionic.js',
       'www/lib/ionic/js/ionic-angular.min.js',
+      'www/lib/underscore/underscore.js',
       'www/js/*.js',
       'tests/unit/*.spec.js',
       'www/templates/*.html'

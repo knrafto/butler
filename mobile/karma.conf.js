@@ -11,7 +11,7 @@ module.exports = function(config){
       'www/lib/ionic/js/ionic-angular.min.js',
       'www/lib/underscore/underscore.js',
       'www/js/*.js',
-      'tests/unit/*.spec.js',
+      'tests/*.spec.js',
       'www/templates/*.html'
     ],
 

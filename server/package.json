@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Butler Server",
   "dependencies": {
+    "mopidy": "^0.4.1",
     "process": "^0.8.0",
     "q": "^1.0.1",
     "socket.io": "^1.1.0",

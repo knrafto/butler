@@ -3,6 +3,8 @@ var _ = require('underscore');
 
 var butler = require('../butler');
 
+exports.depends = ['exit'];
+
 exports.start = function(config) {
   config = config || {};
   var server = new http.Server;

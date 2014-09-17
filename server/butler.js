@@ -1,4 +1,3 @@
-var process = require('process');
 var _ = require('underscore');
 
 function walk(name) {
@@ -92,16 +91,3 @@ Butler.prototype = {
 };
 
 var butler = module.exports = new Butler;
-
-process.on('exit', function(code) {
-  butler.emit('exit', code);
-});
-
-process.on('SIGINT', function() {
-  process.exit();
-});
-
-process.on('uncaughtException', function(err) {
-  console.log(err.stack);
-  process.exit(1);
-});

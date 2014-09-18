@@ -9,7 +9,6 @@ angular.module('mopidy', ['butler', 'server', 'ui.router', 'underscore'])
         controller: 'PlaybackCtrl'
       }
     }
-    // TODO: resolve
   });
 })
 

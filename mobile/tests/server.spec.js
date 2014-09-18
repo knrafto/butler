@@ -58,6 +58,8 @@ describe('server', function() {
     _.each([one, two, three, four], function(spy) {
       spy.calls.reset();
     });
+
+    butler.reset();
   });
 
   it('should fire listeners', function() {

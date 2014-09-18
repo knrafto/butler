@@ -3,10 +3,13 @@ angular.module('server', ['butler', 'underscore'])
 .constant('SERVER_URL', 'http://127.0.0.1:26532')
 
 .factory('socket', function($window, SERVER_URL) {
-  return $window.io(SERVER_URL);
+  var io = $window.io || angular.noop;
+  return io(SERVER_URL);
 })
 
 .run(function($rootScope, $q, socket, butler, _) {
+  if (!socket) return;
+
   var nextId = 0;
   var pendingRequests = {};
 
@@ -39,6 +42,4 @@ angular.module('server', ['butler', 'underscore'])
     butler.emit.apply(butler, [event.event].concat(event.params));
     $rootScope.$apply();
   });
-
-  return butler;
 });

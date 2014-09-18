@@ -21,20 +21,21 @@ describe('lastfm', function() {
     butler.reset();
   });
 
-  it('should get a track image', function(done) {
-    var track = {
+  it('should get an album image', function() {
+    var album = {
+      name: 'foo',
       artists: [
-        { name: 'foo' },
-      ],
-      album: { name: 'bar' }
+        { name: 'bar' },
+      ]
     };
 
     $httpBackend.expectGET(
-      'http://ws.audioscrobbler.com/2.0/?' +
-      'album=bar&' +
-      'api_key=xxx&' +
-      'artist=foo&' +
-      'method=album.getInfo'
+      'http://ws.audioscrobbler.com/2.0/' +
+      '?album=foo' +
+      '&api_key=xxx' +
+      '&artist=bar' +
+      '&format=json' +
+      '&method=album.getInfo'
     ).respond({
       album: {
         image: [
@@ -50,7 +51,7 @@ describe('lastfm', function() {
       }
     });
 
-    lastfm.getTrackImage(track).then(function(url) {
+    lastfm.getAlbumImage(album).then(function(url) {
       expect(url).toBe('http://www.example.com/mega');
     });
 

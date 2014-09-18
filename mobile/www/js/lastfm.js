@@ -8,16 +8,18 @@ angular.module('lastfm', ['butler', 'server', 'underscore'])
     return getKey.then(function(apiKey) {
       params = params || {};
       params.method = method;
+      params.format = 'json';
       params.api_key = apiKey;
       return $http.get(url, { params: params });
     });
   }
 
   return {
-    getTrackImage: function(track) {
+    // TODO: cache
+    getAlbumImage: function(album) {
       return call('album.getInfo', {
-        artist: track.artists[0].name,
-        album: track.album.name
+        artist: album.artists[0].name,
+        album: album.name
       }).then(function(response) {
         return _.last(response.data.album.image)['#text'];
       });

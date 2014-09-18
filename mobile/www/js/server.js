@@ -7,7 +7,7 @@ angular.module('server', ['butler', 'underscore'])
   return io(SERVER_URL);
 })
 
-.run(function($rootScope, $q, socket, butler, _) {
+.run(function($rootScope, $exceptionHandler, $q, socket, butler, _) {
   if (!socket) return;
 
   var nextId = 0;
@@ -16,11 +16,16 @@ angular.module('server', ['butler', 'underscore'])
   butler.register(function() {
     var requestId = nextId++;
     var deferred = $q.defer();
-    socket.emit('request', {
-      id: requestId,
-      method: this.method,
-      params: _.toArray(arguments)
-    });
+    var request = {
+        id: requestId,
+        method: this.method,
+        params: _.toArray(arguments)
+    };
+    try {
+      socket.emit('request', request);
+    } catch (e) {
+      $exceptionHandler(e);
+    }
     pendingRequests[requestId] = deferred;
     return deferred.promise;
   });
@@ -29,10 +34,10 @@ angular.module('server', ['butler', 'underscore'])
     $rootScope.$apply(function() {
       var deferred = pendingRequests[response.id];
       if (deferred) {
-        if (response.result) {
-          deferred.resolve(response.result);
+        if (response.error) {
+          deferred.reject(response.error);
         } else {
-          deferred.reject(response.error || 'unknown error');
+          deferred.resolve(response.result);
         }
         delete pendingRequests[response.id];
       }

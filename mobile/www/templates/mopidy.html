@@ -8,20 +8,26 @@
         <i>{{slider.position | time}} </i>
         <input type="range" integer
           min="0"
-          max="{{mopidy.currentTlTrack.track.length}}"
+          max="{{trackLength}}"
           ng-model="slider.position"
           on-touch="startSeek()"
           on-release="endSeek()">
-        <i> {{mopidy.currentTlTrack.track.length | time}}</i>
+        <i> {{trackLength | time}}</i>
       </div>
       <div class="button-bar">
+        <button class="button button-icon icon ion-loop"
+          ng-class="{balanced: repeat}"
+          ng-click="toggleRepeat()"></button>
         <button class="button button-icon icon ion-ios7-skipbackward"
           ng-click="previous()"></button>
         <button class="button button-icon icon"
-          ng-class="mopidy.state === 'playing' ? 'ion-ios7-pause' : 'ion-ios7-play'"
+          ng-class="playing ? 'ion-ios7-pause' : 'ion-ios7-play'"
           ng-click="toggleState()"></button>
         <button class="button button-icon icon ion-ios7-skipforward"
           ng-click="next()"></button>
+        <button class="button button-icon icon ion-shuffle"
+          ng-class="{balanced: random}"
+          ng-click="toggleRandom()"></button>
       </div>
     </div>
   </ion-content>

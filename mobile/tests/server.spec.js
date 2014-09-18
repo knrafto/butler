@@ -104,13 +104,13 @@ describe('server', function() {
 
     socket.receiveResponse(10, null, 'garply');
     socket.receiveResponse(1, null, 'waldo');
-    socket.receiveResponse(2, null, 'fred');
-    socket.receiveResponse(0, null, 'plugh');
+    socket.receiveResponse(2, null, false);
+    socket.receiveResponse(0, null, null);
 
     expect(one.calls.all()).toEqual([
       { object: $window, args: ['waldo'] },
-      { object: $window, args: ['fred'] },
-      { object: $window, args: ['plugh'] }
+      { object: $window, args: [false] },
+      { object: $window, args: [null] }
     ]);
     expect(two).not.toHaveBeenCalled();
   });

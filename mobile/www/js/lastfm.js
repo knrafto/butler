@@ -1,4 +1,4 @@
-angular.module('lastfm', ['butler', 'server', 'underscore'])
+angular.module('lastfm', ['server', 'underscore'])
 
 .factory('lastfm', function($http, butler, _) {
   var url = 'http://ws.audioscrobbler.com/2.0/';
@@ -6,10 +6,11 @@ angular.module('lastfm', ['butler', 'server', 'underscore'])
 
   function call(method, params) {
     return getKey.then(function(apiKey) {
-      params = params || {};
-      params.method = method;
-      params.format = 'json';
-      params.api_key = apiKey;
+      params = _.extend({}, params, {
+        api_key: apiKey,
+        format: 'json',
+        method: method
+      });
       return $http.get(url, { params: params });
     });
   }

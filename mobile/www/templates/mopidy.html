@@ -2,36 +2,26 @@
   <ion-nav-buttons side="left">
     <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
   </ion-nav-buttons>
-  <ion-content scrollable="false">
-    <div class="list list-inset">
-      <div class="item item-image">
-        <img ng-src="{{imageUrl}}">
+  <ion-content scroll="false">
+    <div ng-controller="PlaybackCtrl">
+      <div class="range">
+        <i>{{slider.position | time}} </i>
+        <input type="range" integer
+          min="0"
+          max="{{mopidy.currentTlTrack.track.length}}"
+          ng-model="slider.position"
+          on-touch="startSeek()"
+          on-release="endSeek()">
+        <i> {{mopidy.currentTlTrack.track.length | time}}</i>
       </div>
-      <div class="item">
-        <pre>{{playback.currentTrack | json}}</pre>
-      </div>
-      <div class="item">
-        <div class="range">
-          <i>{{playback.timePosition | time}} </i>
-          <input type="range" integer
-            min="0"
-            max="{{playback.currentTrack.length}}"
-            ng-model="playback.timePosition"
-            on-touch="startSeek()"
-            on-release="endSeek()">
-          <i> {{playback.currentTrack.length | time}}</i>
-        </div>
-      </div>
-      <div class="item">
-        <div class="button-bar">
-          <button class="button button-icon icon ion-ios7-skipbackward"
-            ng-click="previous()"></button>
-          <button class="button button-icon icon"
-            ng-class="isPlaying() ? 'ion-ios7-pause' : 'ion-ios7-play'"
-            ng-click="toggleState()"></button>
-          <button class="button button-icon icon ion-ios7-skipforward"
-            ng-click="next()"></button>
-        </div>
+      <div class="button-bar">
+        <button class="button button-icon icon ion-ios7-skipbackward"
+          ng-click="previous()"></button>
+        <button class="button button-icon icon"
+          ng-class="mopidy.state === 'playing' ? 'ion-ios7-pause' : 'ion-ios7-play'"
+          ng-click="toggleState()"></button>
+        <button class="button button-icon icon ion-ios7-skipforward"
+          ng-click="next()"></button>
       </div>
     </div>
   </ion-content>

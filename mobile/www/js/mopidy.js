@@ -5,78 +5,104 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     url: '/mopidy',
     views: {
       menuContent: {
-        templateUrl: 'templates/mopidy.html',
-        controller: 'PlaybackCtrl'
+        templateUrl: 'templates/mopidy.html'
       }
     }
   });
 })
 
-.controller('PlaybackCtrl', function($scope, $interval, lastfm, butler, _) {
-  $scope.playback = {};
+.service('mopidy', function($interval, butler, _) {
+  function sync() {
+    var properties = {
+      currentTlTrack: 'mopidy.playback.getCurrentTlTrack',
+      state: 'mopidy.playback.getState',
+      timePosition: 'mopidy.playback.getTimePosition',
+      tracklist: 'mopidy.tracklist.getTracks'
+    };
 
-  var properties = ['currentTrack', 'state', 'timePosition'];
-  _.each(properties, function(property) {
-    var method = 'mopidy.playback.get' +
-      property.charAt(0).toUpperCase() +
-      property.slice(1);
-    butler.call(method).then(function(data) {
-      $scope.playback[property] = data;
+    _.each(properties, function(method, property) {
+      butler.call(method).then(function(data) {
+        mopidy[property] = data;
+      });
     });
+  }
+
+  function call(method) {
+    return function(params) {
+      return butler.call(method, params);
+    };
+  }
+
+  var tick;
+  var lastUpdate;
+
+  function startTimer() {
+    if (tick) $interval.cancel(tick);
+    if (mopidy.state === 'playing') {
+      lastUpdate = Date.now();
+      tick = $interval(function() {
+        var now = Date.now();
+        mopidy.timePosition += now - lastUpdate;
+        lastUpdate = now;
+      }, 100);
+    }
+  }
+
+  var mopidy = {
+    sync: sync
+  };
+
+  _.each('play pause previous next seek'.split(' '), function(method) {
+    mopidy[method] = function(params) {
+      return butler.call('mopidy.playback.' + method, params);
+    };
   });
 
+  sync();
+
   butler.on('mopidy.playbackStateChanged', function(data) {
-    $scope.playback.state = data.new_state;
+    mopidy.state = data.new_state;
+    startTimer();
   });
 
   butler.on('mopidy.trackPlaybackStarted', function(data) {
-    $scope.playback.currentTrack = data.tl_track.track;
-    $scope.playback.timePosition = 0;
+    mopidy.currentTlTrack = data.tl_track;
+    mopidy.timePosition = 0;
   });
 
   butler.on('mopidy.trackPlaybackPaused', function(data) {
-    $scope.playback.currentTrack = data.tl_track.track;
-    $scope.playback.timePosition = data.time_position;
+    mopidy.currentTlTrack = data.tl_track;
+    mopidy.timePosition = data.time_position;
   });
 
   butler.on('mopidy.seeked', function(data) {
-    $scope.playback.timePosition = data.time_position;
+    mopidy.timePosition = data.time_position;
   });
 
-  $scope.$watch('playback.currentTrack.uri', function() {
-    if (!$scope.playback.currentTrack) return;
-    lastfm.getAlbumImage($scope.playback.currentTrack.album).then(function(url) {
-      $scope.imageUrl = url;
-    });
-  });
+  return mopidy;
+})
 
+.controller('PlaybackCtrl', function($scope, mopidy, lastfm, _) {
   var seeking = false;
+  $scope.slider = {};
+  $scope.mopidy = mopidy;
 
-  var lastUpdate = Date.now();
-
-  var tick = $interval(function() {
-    if ($scope.isPlaying() && !seeking) {
-      var now = Date.now();
-      $scope.playback.timePosition += now - lastUpdate;
-      lastUpdate = now;
+  $scope.$watch('mopidy.timePosition', function() {
+    if (!seeking) {
+      $scope.slider.position = mopidy.timePosition;
     }
-  }, 100);
-
-  $scope.isPlaying = function() {
-    return $scope.playback.state === 'playing';
-  };
+  });
 
   $scope.next = function() {
-    butler.call('mopidy.playback.next');
+    mopidy.next();
   };
 
   $scope.previous = function() {
-    butler.call('mopidy.playback.previous');
+    mopidy.previous();
   };
 
   $scope.toggleState = function() {
-    butler.call('mopidy.playback.' +
-      ($scope.isPlaying() ? 'pause' : 'play'));
+    $scope.mopidy.state === 'playing' ? mopidy.pause() : mopidy.play();
   };
 
   $scope.startSeek = function() {
@@ -85,14 +111,8 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
   $scope.endSeek = function() {
     seeking = false;
-    butler.call('mopidy.playback.seek', {
-      time_position: $scope.playback.timePosition
-    });
+    mopidy.seek({ time_position: $scope.slider.position });
   };
-
-  $scope.$on('$destroy', function() {
-    $interval.cancel(tick);
-  });
 })
 
 .directive('integer', function() {

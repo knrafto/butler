@@ -78,7 +78,7 @@ describe('server', function() {
   it('should apply scope after emitting', function() {
     spyOn($rootScope, '$apply');
     socket.receiveEvent('foo.bar', 1);
-    expect($rootScope.$apply).toHaveBeenCalledWith();
+    expect($rootScope.$apply).toHaveBeenCalled();
   });
 
   it('should send numbered requests', function() {

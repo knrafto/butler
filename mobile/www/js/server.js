@@ -26,20 +26,22 @@ angular.module('server', ['butler', 'underscore'])
   });
 
   socket.on('response', function(response) {
-    var deferred = pendingRequests[response.id];
-    if (deferred) {
-      if (response.result) {
-        deferred.resolve(response.result);
-      } else {
-        deferred.reject(response.error || 'unknown error');
+    $rootScope.$apply(function() {
+      var deferred = pendingRequests[response.id];
+      if (deferred) {
+        if (response.result) {
+          deferred.resolve(response.result);
+        } else {
+          deferred.reject(response.error || 'unknown error');
+        }
+        delete pendingRequests[response.id];
       }
-      delete pendingRequests[response.id];
-    }
-    $rootScope.$apply();
+    });
   });
 
   socket.on('event', function(event) {
-    butler.emit.apply(butler, [event.event].concat(event.params));
-    $rootScope.$apply();
+    $rootScope.$apply(function() {
+      butler.emit.apply(butler, [event.event].concat(event.params));
+    });
   });
 });

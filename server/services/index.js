@@ -1,7 +1,7 @@
 var _ = require('underscore');
 
 var services = [
-  'exit', 'mopidy', 'server', 'socket.io'
+  'key', 'exit', 'mopidy', 'server', 'socket.io'
 ];
 
 exports.start = function(config) {

@@ -9,7 +9,14 @@ var sh = require('shelljs');
 var karma = require('gulp-karma');
 
 var paths = {
-  sass: ['./scss/**/*.scss']
+  sass: ['./scss/**/*.scss'],
+  js: [
+    './www/lib/ionic/js/ionic.bundle.js',
+    './www/lib/socket.io-client/socket.io.js',
+    './www/lib/underscore/underscore.js',
+    '../common/butler.js',
+    './www/js/*.js'
+  ]
 };
 
 gulp.task('default', ['sass', 'test']);
@@ -23,7 +30,7 @@ gulp.task('test', function() {
     }));
 });
 
-gulp.task('sass', function(done) {
+gulp.task('sass', function() {
   if (gulp.env.watch) {
     return gulp.watch(paths.sass, ['sass']);
   }
@@ -34,8 +41,16 @@ gulp.task('sass', function(done) {
       keepSpecialComments: 0
     }))
     .pipe(rename({ extname: '.min.css' }))
-    .pipe(gulp.dest('./www/css/'))
-    .on('end', done);
+    .pipe(gulp.dest('./www/css/'));
+});
+
+gulp.task('js', function() {
+  if (gulp.env.watch) {
+    return gulp.watch(paths.js, ['js']);
+  }
+  return gulp.src(paths.js)
+    .pipe(concat('all.js'))
+    .pipe(gulp.dest('./www/dist/'));
 });
 
 gulp.task('install', ['git-check'], function() {

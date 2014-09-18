@@ -1,4 +1,4 @@
-angular.module('mopidy', ['butler', 'server', 'ui.router', 'underscore'])
+angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore'])
 
 .config(function($stateProvider) {
   $stateProvider.state('app.mopidy', {
@@ -12,7 +12,7 @@ angular.module('mopidy', ['butler', 'server', 'ui.router', 'underscore'])
   });
 })
 
-.controller('PlaybackCtrl', function($scope, $interval, butler, _) {
+.controller('PlaybackCtrl', function($scope, $interval, lastfm, butler, _) {
   $scope.playback = {};
 
   var properties = ['currentTrack', 'state', 'timePosition'];
@@ -41,6 +41,13 @@ angular.module('mopidy', ['butler', 'server', 'ui.router', 'underscore'])
 
   butler.on('mopidy.seeked', function(data) {
     $scope.playback.timePosition = data.time_position;
+  });
+
+  $scope.$watch('playback.currentTrack.uri', function() {
+    if (!$scope.playback.currentTrack) return;
+    lastfm.getAlbumImage($scope.playback.currentTrack.album).then(function(url) {
+      $scope.imageUrl = url;
+    });
   });
 
   var seeking = false;

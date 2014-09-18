@@ -4,6 +4,9 @@
   </ion-nav-buttons>
   <ion-content scrollable="false">
     <div class="list list-inset">
+      <div class="item item-image">
+        <img ng-src="{{imageUrl}}">
+      </div>
       <div class="item">
         <pre>{{playback.currentTrack | json}}</pre>
       </div>

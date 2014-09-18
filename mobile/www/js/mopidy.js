@@ -115,9 +115,14 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   $scope.$watch(function() {
     return mopidy.currentTlTrack && mopidy.currentTlTrack.track.uri;
   }, function() {
-    $scope.trackLength = mopidy.currentTlTrack ?
-      mopidy.currentTlTrack.track.length : 0;
-  })
+    $scope.track = mopidy.currentTlTrack && mopidy.currentTlTrack.track;
+    $scope.image = null;
+    if ($scope.track) {
+      lastfm.getAlbumImage($scope.track.album).then(function(image) {
+        $scope.image = image;
+      });
+    }
+  });
 
   $scope.$watch(function() {
     return mopidy.timePosition;
@@ -171,6 +176,18 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     link: function(scope, elm, attrs, ctrl) {
       ctrl.$parsers.unshift(parseInt);
     }
+  };
+})
+
+.filter('names', function() {
+  return function(objects) {
+    if (!objects) return '';
+    var names = [];
+    var i;
+    for (i = 0; i < objects.length; i++) {
+      names.push(objects[i].name);
+    }
+    return names.join(', ');
   };
 })
 

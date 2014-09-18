@@ -3,16 +3,21 @@
     <button menu-toggle="left" class="button button-icon icon ion-navicon"></button>
   </ion-nav-buttons>
   <ion-content scroll="false">
-    <div ng-controller="PlaybackCtrl">
+    <div class="playback" ng-controller="PlaybackCtrl">
+      <img ng-src="{{image}}">
+      <div class="track-info">
+        <h2>{{track.name}}</h2>
+        <p>{{track.artists | names}}</p>
+      </div>
       <div class="range">
         <i>{{slider.position | time}} </i>
         <input type="range" integer
           min="0"
-          max="{{trackLength}}"
+          max="{{track.length}}"
           ng-model="slider.position"
           on-touch="startSeek()"
           on-release="endSeek()">
-        <i> {{trackLength | time}}</i>
+        <i> {{track.length | time}}</i>
       </div>
       <div class="button-bar">
         <button class="button button-icon icon ion-loop"

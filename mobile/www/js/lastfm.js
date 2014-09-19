@@ -6,7 +6,7 @@ angular.module('lastfm', ['server', 'underscore'])
 
   function call(method, params) {
     return getKey.then(function(apiKey) {
-      params = _.extend({}, params, {
+      params = _.extend(params, {
         api_key: apiKey,
         format: 'json',
         method: method
@@ -17,12 +17,14 @@ angular.module('lastfm', ['server', 'underscore'])
 
   return {
     // TODO: cache
-    getAlbumImage: function(album) {
+    getAlbumImage: function(album, size) {
       return call('album.getInfo', {
         artist: album.artists[0].name,
         album: album.name
       }).then(function(response) {
-        return _.last(response.data.album.image)['#text'];
+        var image = _.find(response.data.album.image,
+          _.matches({ size: size }));
+        return image && image['#text'];
       });
     }
   };

@@ -223,12 +223,13 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   return {
     restrict: 'A',
     scope: {
-      album: '=mopidyAlbumImage'
+      album: '=mopidyAlbumImage',
+      size: '@'
     },
     controller: function($scope, $q, lastfm) {
       this.getAlbumImage = function() {
         if (!$scope.album) return $q.reject();
-        return lastfm.getAlbumImage($scope.album);
+        return lastfm.getAlbumImage($scope.album, $scope.size);
       };
     },
     link: function(scope, element, attr, ctrl) {

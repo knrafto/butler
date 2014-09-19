@@ -1,13 +1,26 @@
 angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore'])
 
 .config(function($stateProvider) {
-  $stateProvider.state('app.mopidy', {
-    url: '/mopidy',
-    views: {
-      menuContent: {
-        templateUrl: 'templates/mopidy.html'
-      }
-    }
+  $stateProvider
+
+  .state('app.mopidy', {
+    url: '/mopidy/home',
+    templateUrl: 'templates/mopidy/home.html'
+  })
+
+  .state('app.mopidy-playback', {
+    url: '/mopidy/playback',
+    templateUrl: 'templates/mopidy/playback.html'
+  })
+
+  .state('app.mopidy-search', {
+    url: '/mopidy/search',
+    templateUrl: 'templates/mopidy/search.html'
+  })
+
+  .state('app.mopidy-libary', {
+    url: '/mopidy/library',
+    templateUrl: 'templates/mopidy/library.html'
   });
 })
 

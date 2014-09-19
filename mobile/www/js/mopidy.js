@@ -18,9 +18,14 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     templateUrl: 'templates/mopidy/search.html'
   })
 
-  .state('app.mopidy-libary', {
+  .state('app.mopidy-library', {
     url: '/mopidy/library',
     templateUrl: 'templates/mopidy/library.html'
+  })
+
+  .state('app.mopidy-detail/:uri', {
+    url: '/mopidy/detail',
+    templateUrl: 'templates/mopidy/detail.html'
   });
 })
 

@@ -1,35 +1,14 @@
 <ion-view title="Now Playing">
   <ion-content scroll="false">
-    <div class="playback" ng-controller="PlaybackCtrl">
-      <img ng-src="{{image}}">
-      <div class="track-info">
-        <h2>{{track.name}}</h2>
-        <p>{{track.artists | names}}</p>
-      </div>
-      <div class="range">
-        <i>{{slider.position | time}} </i>
-        <input type="range" integer
-          min="0"
-          max="{{track.length}}"
-          ng-model="slider.position"
-          on-touch="startSeek()"
-          on-release="endSeek()">
-        <i> {{track.length | time}}</i>
-      </div>
+    <div class="playback" ng-controller="MopidyCtrl">
+      <mopidy-track-info mopidy-track="mopidy.currentTlTrack.track"></mopidy-track-info>
+      <mopidy-seek-slider></mopidy-seek-slider>
       <div class="button-bar">
-        <button class="button button-icon icon ion-loop"
-          ng-class="{balanced: repeat}"
-          ng-click="toggleRepeat()"></button>
-        <button class="button button-icon icon ion-ios7-skipbackward"
-          ng-click="previous()"></button>
-        <button class="button button-icon icon"
-          ng-class="playing ? 'ion-ios7-pause' : 'ion-ios7-play'"
-          ng-click="toggleState()"></button>
-        <button class="button button-icon icon ion-ios7-skipforward"
-          ng-click="next()"></button>
-        <button class="button button-icon icon ion-shuffle"
-          ng-class="{balanced: random}"
-          ng-click="toggleRandom()"></button>
+        <mopidy-repeat-button></mopidy-repeat-button>
+        <mopidy-previous-button></mopidy-previous-button>
+        <mopidy-play-button></mopidy-play-button>
+        <mopidy-next-button></mopidy-next-button>
+        <mopidy-random-button></mopidy-random-button>
       </div>
     </div>
   </ion-content>

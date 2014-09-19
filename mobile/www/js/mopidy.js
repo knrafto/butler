@@ -115,76 +115,131 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   return mopidy;
 })
 
-.controller('PlaybackCtrl', function($scope, mopidy, lastfm, _) {
-  var seeking = false;
-  $scope.slider = {};
+.controller('MopidyCtrl', function($scope, mopidy) {
+  $scope.mopidy = mopidy;
+})
 
-  $scope.$watch(function() {
-    return mopidy.state;
-  }, function(state) {
-    $scope.playing = state === 'playing';
-  });
+.directive('mopidyPlayButton', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    template:
+      '<button class="button button-icon icon"' +
+      '  ng-class="mopidy.state === \'playing\'' +
+      '    ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
+      '  ng-click="mopidy.state === \'playing\'' +
+      '    ? mopidy.pause() : mopidy.play()"></button>'
+  };
+})
 
-  $scope.$watch(function() {
-    return mopidy.currentTlTrack && mopidy.currentTlTrack.track.uri;
-  }, function() {
-    $scope.track = mopidy.currentTlTrack && mopidy.currentTlTrack.track;
-    $scope.image = null;
-    if ($scope.track) {
-      lastfm.getAlbumImage($scope.track.album).then(function(image) {
-        $scope.image = image;
+.directive('mopidyNextButton', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    template:
+      '<button class="button button-icon icon ion-ios7-skipforward"' +
+      '  ng-click="mopidy.next()"></button>'
+  };
+})
+
+.directive('mopidyPreviousButton', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    template:
+      '<button class="button button-icon icon ion-ios7-skipbackward"' +
+      '  ng-click="mopidy.previous()"></button>'
+  };
+})
+
+.directive('mopidyRepeatButton', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    template:
+      '<button class="button button-icon icon ion-loop"' +
+      '  ng-class="{balanced: mopidy.repeat}"' +
+      '  ng-click="mopidy.setRepeat(!mopidy.repeat)"></button>'
+  };
+})
+
+.directive('mopidyRandomButton', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    template:
+      '<button class="button button-icon icon ion-shuffle"' +
+      '  ng-class="{balanced: mopidy.random}"' +
+      '  ng-click="mopidy.setRandom(!mopidy.random)"></button>'
+  };
+})
+
+.directive('mopidySeekSlider', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    scope: true,
+    template:
+      '<div class="range">' +
+      '  <i>{{slider.position | time}}</i>' +
+      '  <input integer type="range"' +
+      '    min="0" max="{{slider.length}}"' +
+      '    ng-model="slider.position"' +
+      '    on-touch="startSeek()"' +
+      '    on-release="endSeek()">' +
+      '  <i>{{slider.length | time}}</i>' +
+      '</div>',
+    controller: function($scope) {
+      var seeking = false;
+
+      $scope.slider = {
+        position: 0,
+        length: 0
+      };
+
+      $scope.$watch('mopidy.timePosition', function(position) {
+        if (!seeking) {
+          $scope.slider.position = position;
+        }
       });
+
+      $scope.$watch('mopidy.currentTlTrack.track.length', function(length) {
+        $scope.slider.length = length || 0;
+      });
+
+      $scope.startSeek = function() {
+        seeking = true;
+      };
+
+      $scope.endSeek = function() {
+        seeking = false;
+        $scope.mopidy.seek($scope.slider.position);
+      };
     }
-  });
+  };
+})
 
-  $scope.$watch(function() {
-    return mopidy.timePosition;
-  }, function(position) {
-    if (!seeking) {
-      $scope.slider.position = position;
+.directive('mopidyTrackInfo', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    scope: {
+      track: '=mopidyTrack'
+    },
+    template:
+      '<div class="track-info">' +
+      '  <h2>{{track.name}}</h2>' +
+      '  <p>{{track.artists | pluck:"name" | join:", "}}</p>' +
+      '</div>',
+    controller: function($scope) {
+      console.log($scope.track);
     }
-  });
-
-  _.each(['random', 'repeat'], function(property) {
-    $scope.$watch(function() {
-      return mopidy[property];
-    }, function(value) {
-      $scope[property] = value;
-    });
-  });
-
-  $scope.next = function() {
-    mopidy.next();
-  };
-
-  $scope.previous = function() {
-    mopidy.previous();
-  };
-
-  $scope.toggleState = function() {
-    $scope.playing ? mopidy.pause() : mopidy.play();
-  };
-
-  $scope.toggleRepeat = function() {
-    mopidy.setRepeat(!$scope.repeat);
-  };
-
-  $scope.toggleRandom = function() {
-    mopidy.setRandom(!$scope.random);
-  };
-
-  $scope.startSeek = function() {
-    seeking = true;
-  };
-
-  $scope.endSeek = function() {
-    seeking = false;
-    mopidy.seek($scope.slider.position);
   };
 })
 
 .directive('integer', function() {
   return {
+    restrict: 'A',
     require: 'ngModel',
     link: function(scope, elm, attrs, ctrl) {
       ctrl.$parsers.unshift(parseInt);
@@ -192,21 +247,21 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   };
 })
 
-.filter('names', function() {
-  return function(objects) {
-    if (!objects) return '';
-    var names = [];
-    var i;
-    for (i = 0; i < objects.length; i++) {
-      names.push(objects[i].name);
-    }
-    return names.join(', ');
-  };
-})
-
 .filter('time', function() {
   return function(input) {
     var seconds = (input / 1000) | 0;
     return Math.floor(seconds / 60) + ':' + ('0' + seconds % 60).slice(-2);
+  };
+})
+
+.filter('pluck', function(_) {
+  return function(input, name) {
+    return _.pluck(input, name);
+  };
+})
+
+.filter('join', function() {
+  return function(input, delimeter) {
+    return (input || []).join(delimeter || ' ');
   };
 });

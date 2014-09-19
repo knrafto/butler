@@ -219,21 +219,38 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   };
 })
 
+.directive('mopidyAlbumImage', function() {
+  return {
+    restrict: 'A',
+    scope: {
+      album: '=mopidyAlbumImage'
+    },
+    controller: function($scope, $q, lastfm) {
+      this.getAlbumImage = function() {
+        if (!$scope.album) return $q.reject();
+        return lastfm.getAlbumImage($scope.album);
+      };
+    },
+    link: function(scope, element, attr, ctrl) {
+      scope.$watch('album.uri', function() {
+        attr.$set('src', '');
+        ctrl.getAlbumImage().then(function(image) {
+          attr.$set('src', image);
+        });
+      });
+    }
+  };
+})
+
 .directive('mopidyTrackInfo', function() {
   return {
-    restrict: 'E',
-    replace: true,
+    restrict: 'A',
     scope: {
-      track: '=mopidyTrack'
+      track: '=mopidyTrackInfo'
     },
     template:
-      '<div class="track-info">' +
-      '  <h2>{{track.name}}</h2>' +
-      '  <p>{{track.artists | pluck:"name" | join:", "}}</p>' +
-      '</div>',
-    controller: function($scope) {
-      console.log($scope.track);
-    }
+      '<h2>{{track.name}}</h2>' +
+      '<p>{{track.artists | pluck:"name" | join:", "}}</p>'
   };
 })
 

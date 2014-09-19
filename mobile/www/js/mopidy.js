@@ -255,12 +255,37 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   };
 })
 
+.directive('mopidyPlaybackBar', function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    scope: {},
+    templateUrl: 'templates/mopidy/playback-bar.html',
+    controller: 'MopidyCtrl'
+  }
+})
+
 .directive('integer', function() {
   return {
     restrict: 'A',
     require: 'ngModel',
     link: function(scope, elm, attrs, ctrl) {
       ctrl.$parsers.unshift(parseInt);
+    }
+  };
+})
+
+.directive('stopEvent', function () {
+  return {
+    restrict: 'A',
+    scope: {
+      name: '@stopEvent'
+    },
+    link: function(scope, element, attr) {
+      element.bind(scope.name, function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+      });
     }
   };
 })

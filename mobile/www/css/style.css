@@ -1,34 +1,52 @@
 /* Empty. Add your own CSS if you like */
-.playback {
+.mopidy-playback {
     height: 100%;
 }
 
-.playback img {
+.mopidy-playback img {
     display: block;
     height: 70%;
     margin-left: auto;
     margin-right: auto;
 }
 
-.playback .track-info {
+.mopidy-playback .mopidy-track-info {
     padding: 10px;
     height: 10%;
     text-align: center;
 }
 
-.playback .track-info h2 {
+.mopidy-playback .range {
+    height: 10%;
+}
+
+.mopidy-playback .button-bar {
+    height: 10%;
+}
+
+.mopidy-track-info h2 {
     font-size: 12pt;
 }
 
-.playback .track-info p {
+.mopidy-track-info p {
     color: #666;
     font-size: 12px;
 }
 
-.playback .range {
-    height: 10%;
+.mopidy-playback-bar {
+    height: 75px;
+    text-decoration: none;
 }
 
-.playback .button-bar {
-    height: 10%;
+.mopidy-playback-bar img {
+    height: 100%;
+}
+
+.mopidy-playback-bar .mopidy-track-info {
+    padding: 10px;
+    height: 100%;
+}
+
+.mopidy-playback-bar .button.pull-right {
+    margin: 16px;
 }

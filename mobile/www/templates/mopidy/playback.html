@@ -1,8 +1,8 @@
 <ion-view title="Now Playing">
   <ion-content scroll="false">
-    <div class="playback" ng-controller="MopidyCtrl">
+    <div class="mopidy-playback" ng-controller="MopidyCtrl">
       <img mopidy-album-image="mopidy.currentTlTrack.track.album" size="mega">
-      <div class="track-info"
+      <div class="mopidy-track-info"
         mopidy-track-info="mopidy.currentTlTrack.track"></div>
       <mopidy-seek-slider></mopidy-seek-slider>
       <div class="button-bar">

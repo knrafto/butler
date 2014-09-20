@@ -4,28 +4,35 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   $stateProvider
 
   .state('app.mopidy', {
-    url: '/mopidy/home',
+    url: '/mopidy',
+    abstract: true,
+    template:
+      '<ion-nav-view></ion-nav-view>',
+    controller: 'MopidyCtrl'
+  })
+
+  .state('app.mopidy.home', {
     templateUrl: 'templates/mopidy/home.html'
   })
 
-  .state('app.mopidy-playback', {
-    url: '/mopidy/playback',
+  .state('app.mopidy.playback', {
+    url: '/playback',
     templateUrl: 'templates/mopidy/playback.html'
   })
 
-  .state('app.mopidy-search', {
-    url: '/mopidy/search',
+  .state('app.mopidy.search', {
+    url: '/search',
     templateUrl: 'templates/mopidy/search.html'
   })
 
-  .state('app.mopidy-library', {
-    url: '/mopidy/library',
-    templateUrl: 'templates/mopidy/library.html'
+  .state('app.mopidy.playlists', {
+    url: '/playlists',
+    templateUrl: 'templates/mopidy/playlists.html'
   })
 
-  .state('app.mopidy-detail/:uri', {
-    url: '/mopidy/detail',
-    templateUrl: 'templates/mopidy/detail.html'
+  .state('app.mopidy.playlist', {
+    url: '/playlist/:uri',
+    templateUrl: 'templates/mopidy/playlist.html'
   });
 })
 
@@ -264,9 +271,8 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   return {
     restrict: 'E',
     replace: true,
-    scope: {},
-    templateUrl: 'templates/mopidy/playback-bar.html',
-    controller: 'MopidyCtrl'
+    scope: false,
+    templateUrl: 'templates/mopidy/playback-bar.html'
   }
 })
 

@@ -8,7 +8,9 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     abstract: true,
     template:
       '<ion-nav-view></ion-nav-view>',
-    controller: 'MopidyCtrl'
+    controller: function($scope, mopidy) {
+      $scope.mopidy = mopidy;
+    }
   })
 
   .state('app.mopidy.home', {
@@ -32,7 +34,15 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
   .state('app.mopidy.playlist', {
     url: '/playlist/:uri',
-    templateUrl: 'templates/mopidy/playlist.html'
+    templateUrl: 'templates/mopidy/playlist.html',
+    controller: function($scope, playlist) {
+      $scope.playlist = playlist;
+    },
+    resolve: {
+      playlist: function($stateParams, mopidy) {
+        return mopidy.getPlaylist($stateParams.uri);
+      }
+    }
   });
 })
 
@@ -71,6 +81,10 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
       return butler.call('mopidy.tracklist.' + method, { value: value });
     };
   });
+
+  mopidy.getPlaylist = function(uri) {
+    return butler.call('mopidy.playlists.lookup', { uri: uri });
+  };
 
   var syncMethods = {
     currentTlTrack: 'mopidy.playback.getCurrentTlTrack',
@@ -132,10 +146,6 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   sync();
 
   return mopidy;
-})
-
-.controller('MopidyCtrl', function($scope, mopidy) {
-  $scope.mopidy = mopidy;
 })
 
 .directive('mopidyPlayButton', function() {
@@ -272,6 +282,17 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
       '<h2>{{track.name}}</h2>' +
       '<p>{{track.artists | pluck:"name" | join:", "}}</p>'
   };
+})
+
+.directive('mopidyTrackList', function() {
+  return {
+    restrict: 'A',
+    replace: true,
+    scope: {
+      tracks: '=mopidyTrackList'
+    },
+    templateUrl: 'templates/mopidy/track-list.html'
+  }
 })
 
 .directive('mopidyPlaybackBar', function() {

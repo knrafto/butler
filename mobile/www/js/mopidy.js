@@ -74,6 +74,7 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
   var syncMethods = {
     currentTlTrack: 'mopidy.playback.getCurrentTlTrack',
+    playlists: 'mopidy.playlists.getPlaylists',
     random: 'mopidy.tracklist.getRandom',
     repeat: 'mopidy.tracklist.getRepeat',
     single: 'mopidy.tracklist.getSingle',
@@ -120,6 +121,12 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
   butler.on('mopidy.optionsChanged', function(data) {
     mopidy.sync(['random', 'repeat', 'single']);
+  });
+
+  _.each(['mopidy.playlistChanged', 'mopidy.playlistsLoaded'], function(name) {
+    butler.on(name, function() {
+      mopidy.sync(['playlists']);
+    });
   });
 
   sync();

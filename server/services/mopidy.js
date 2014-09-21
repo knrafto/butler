@@ -6,8 +6,6 @@ var butler = require('../butler');
 exports.start = function(config) {
   config = config || {};
 
-  // TODO: spawn
-
   var mopidy = new Mopidy({
     webSocketUrl: config.url,
     callingConvention: 'by-position-or-by-name'

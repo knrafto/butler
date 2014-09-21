@@ -18,7 +18,7 @@ exports.start = function(config) {
     return server;
   });
 
-  server.on('error', function() {
+  server.on('error', function(err) {
     butler.emit('error', 'server', err);
   });
 };

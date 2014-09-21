@@ -14,6 +14,7 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   })
 
   .state('app.mopidy.home', {
+    url: '/home',
     templateUrl: 'templates/mopidy/home.html'
   })
 

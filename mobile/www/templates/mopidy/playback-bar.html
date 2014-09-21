@@ -1,5 +1,6 @@
 <a class="bar bar-footer bar-stable mopidy playback-bar"
-  ui-sref="app.mopidy.playback">
+  ui-sref="app.mopidy.playback"
+  ng-show="mopidy.currentTlTrack">
   <mopidy-album-image album="mopidy.currentTlTrack.track.album" size="medium">
   </mopidy-album-image>
   <mopidy-track-info track="mopidy.currentTlTrack.track">

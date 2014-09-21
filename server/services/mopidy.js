@@ -22,7 +22,7 @@ exports.start = function(config) {
   mopidy.on(function(name) {
     if (!name.match(/^event:/)) return;
     name = name.replace(/^event:/, 'mopidy.');
-    var args = _.toArray(arguments).slice(1)
+    var args = _.toArray(arguments).slice(1);
     butler.emit.apply(butler, [name].concat(args));
   });
 };

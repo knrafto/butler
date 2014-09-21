@@ -86,6 +86,42 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     return butler.call('mopidy.playlists.lookup', { uri: uri });
   };
 
+  mopidy.queueTrack = function(track) {
+    var index = 0;
+    if (mopidy.currentTlTrack) {
+      var tlid = mopidy.currentTlTrack.tlid;
+      _.find(mopidy.tracklist, function(tlTrack, i) {
+        if (tlTrack.tlid === tlid) {
+          index = i + 1;
+          return true;
+        }
+      });
+    }
+    return butler.call('mopidy.tracklist.add', {
+      tracks: [track],
+      at_position: index
+    });
+  };
+
+  mopidy.setTracklist = function(tracks, track) {
+    return butler.call('mopidy.playback.stop', { clear_current_track: true })
+    .then(function() {
+      butler.call('mopidy.tracklist.clear')
+    })
+    .then(function() {
+      return butler.call('mopidy.tracklist.add', { tracks: tracks })
+    })
+    .then(function() {
+      return butler.call('mopidy.tracklist.getTlTracks')
+    })
+    .then(function(tlTracks) {
+      var tlTrack = _.find(tlTracks, function(tlTrack) {
+        return tlTrack.track.uri === track.uri;
+      });
+      return butler.call('mopidy.playback.play', { tl_track: tlTrack });
+    });
+  };
+
   var syncMethods = {
     currentTlTrack: 'mopidy.playback.getCurrentTlTrack',
     playlists: 'mopidy.playlists.getPlaylists',
@@ -192,14 +228,13 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   };
 })
 
-.directive('mopidyRandomButton', function() {
+.directive('mopidyShuffleButton', function() {
   return {
     restrict: 'E',
     replace: true,
     template:
       '<button class="button button-icon icon ion-shuffle"' +
-      '  ng-class="{balanced: mopidy.random}"' +
-      '  ng-click="mopidy.setRandom(!mopidy.random)"></button>'
+      '  ng-click="mopidy.shuffle()"></button>'
   };
 })
 
@@ -209,7 +244,7 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     replace: true,
     scope: true,
     template:
-      '<div class="range">' +
+      '<div class="range seek-slider">' +
       '  <i>{{slider.position | time}}</i>' +
       '  <input integer type="range"' +
       '    min="0" max="{{slider.length}}"' +
@@ -250,11 +285,13 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
 .directive('mopidyAlbumImage', function() {
   return {
-    restrict: 'A',
+    restrict: 'E',
+    replace: true,
     scope: {
-      album: '=mopidyAlbumImage',
+      album: '=',
       size: '@'
     },
+    template: '<img class="album-image"></img>',
     controller: function($scope, $q, lastfm) {
       this.getAlbumImage = function() {
         if (!$scope.album) return $q.reject();
@@ -274,25 +311,49 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
 
 .directive('mopidyTrackInfo', function() {
   return {
-    restrict: 'A',
+    restrict: 'E',
+    replace: true,
     scope: {
-      track: '=mopidyTrackInfo'
+      track: '='
     },
     template:
-      '<h2>{{track.name}}</h2>' +
-      '<p>{{track.artists | pluck:"name" | join:", "}}</p>'
+      '<div class="track-info"' +
+      '  <h2>{{track.name}}</h2>' +
+      '  <p>{{track.artists | pluck:"name" | join:", "}}</p>' +
+      '</div>'
   };
 })
 
 .directive('mopidyTrackList', function() {
   return {
-    restrict: 'A',
+    restrict: 'E',
     replace: true,
     scope: {
-      tracks: '=mopidyTrackList'
+      tracks: '='
     },
-    templateUrl: 'templates/mopidy/track-list.html'
+    templateUrl: 'templates/mopidy/track-list.html',
+    controller: 'TrackListCtrl'
   }
+})
+
+.controller('TrackListCtrl', function($scope, $ionicActionSheet, mopidy) {
+  $scope.trackAction = function(track) {
+    $ionicActionSheet.show({
+      buttons: [
+        { text: 'Queue' },
+        { text: 'Play from here' }
+      ],
+      cancelText: 'Cancel',
+      buttonClicked: function(index) {
+        if (index === 0) {
+          mopidy.queueTrack(track);
+        } else if (index === 1) {
+          mopidy.setTracklist($scope.tracks, track);
+        }
+        return true;
+      }
+    });
+  };
 })
 
 .directive('mopidyPlaybackBar', function() {

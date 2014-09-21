@@ -19,7 +19,7 @@ angular.module('server', ['butler', 'underscore'])
     var request = {
         id: requestId,
         method: this.method,
-        params: _.toArray(arguments)
+        params: angular.copy(_.toArray(arguments))
     };
     try {
       socket.emit('request', request);

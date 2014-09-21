@@ -1,8 +1,9 @@
-<a class="bar bar-footer bar-stable mopidy-playback-bar"
+<a class="bar bar-footer bar-stable mopidy playback-bar"
   ui-sref="app.mopidy.playback">
-  <img mopidy-album-image="mopidy.currentTlTrack.track.album" size="medium">
-  <div class="mopidy-track-info"
-    mopidy-track-info="mopidy.currentTlTrack.track"></div>
+  <mopidy-album-image album="mopidy.currentTlTrack.track.album" size="medium">
+  </mopidy-album-image>
+  <mopidy-track-info track="mopidy.currentTlTrack.track">
+  </mopidy-track-info>
   <mopidy-play-button class="pull-right" stop-event="click">
   </mopidy-play-button>
 </a>

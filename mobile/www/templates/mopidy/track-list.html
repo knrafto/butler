@@ -1,6 +1,7 @@
 <div class="list">
-  <div class="item item-thumbnail-left" ng-repeat="track in tracks">
-    <img mopidy-album-image="track.album" size="medium">
-    <div mopidy-track-info="track"></div>
+  <div class="item item-thumbnail-left" ng-repeat="track in tracks"
+    ng-click="trackAction(track)">
+    <mopidy-album-image album="track.album" size="medium"></mopidy-album-image>
+    <mopidy-track-info track="track"></mopidy-track-info>
   </div>
 </div>

@@ -1,16 +1,18 @@
 <ion-view title="Now Playing">
   <ion-content scroll="false">
-    <div class="mopidy-playback">
-      <img mopidy-album-image="mopidy.currentTlTrack.track.album" size="mega">
-      <div class="mopidy-track-info"
-        mopidy-track-info="mopidy.currentTlTrack.track"></div>
+    <div class="mopidy playback">
+      <mopidy-album-image
+        album="mopidy.currentTlTrack.track.album" size="mega">
+      </mopidy-album-image>
+      <mopidy-track-info track="mopidy.currentTlTrack.track">
+      </mopidy-track-info>
       <mopidy-seek-slider></mopidy-seek-slider>
       <div class="button-bar">
         <mopidy-repeat-button></mopidy-repeat-button>
         <mopidy-previous-button></mopidy-previous-button>
         <mopidy-play-button></mopidy-play-button>
         <mopidy-next-button></mopidy-next-button>
-        <mopidy-random-button></mopidy-random-button>
+        <mopidy-shuffle-button></mopidy-shuffle-button>
       </div>
     </div>
   </ion-content>

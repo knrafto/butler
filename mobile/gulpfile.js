@@ -9,17 +9,20 @@ var sh = require('shelljs');
 var karma = require('gulp-karma');
 
 var paths = {
-  sass: ['./scss/**/*.scss'],
+  sass: [
+    './scss/**/*.scss',
+    './www/scss/**/*.scss'
+  ],
   js: [
     './www/lib/ionic/js/ionic.bundle.js',
     './www/lib/socket.io-client/socket.io.js',
     './www/lib/underscore/underscore.js',
     '../common/butler.js',
-    './www/js/*.js'
+    './www/js/**/*.js'
   ]
 };
 
-gulp.task('default', ['sass', 'test']);
+gulp.task('default', ['sass', 'js']);
 
 gulp.task('test', function() {
   var action = gulp.env.watch ? 'watch' : 'run';
@@ -31,10 +34,7 @@ gulp.task('test', function() {
 });
 
 gulp.task('sass', function() {
-  if (gulp.env.watch) {
-    return gulp.watch(paths.sass, ['sass']);
-  }
-  return gulp.src('./scss/ionic.app.scss')
+  return gulp.src(paths.sass)
     .pipe(sass())
     .pipe(gulp.dest('./www/css/'))
     .pipe(minifyCss({
@@ -45,12 +45,14 @@ gulp.task('sass', function() {
 });
 
 gulp.task('js', function() {
-  if (gulp.env.watch) {
-    return gulp.watch(paths.js, ['js']);
-  }
   return gulp.src(paths.js)
     .pipe(concat('all.js'))
     .pipe(gulp.dest('./www/dist/'));
+});
+
+gulp.task('watch', function() {
+  gulp.watch(paths.sass, ['sass']);
+  gulp.watch(paths.js, ['js']);
 });
 
 gulp.task('install', ['git-check'], function() {

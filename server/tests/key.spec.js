@@ -1,5 +1,5 @@
 var butler = require('../butler');
-var service = require('../services/key');
+var start = require('../services/key');
 
 describe('key', function() {
   afterEach(function() {
@@ -7,7 +7,7 @@ describe('key', function() {
   });
 
   it('should return keys', function() {
-    service.start({
+    start({
       'foo': 'bar',
       'key.key': 42,
     });

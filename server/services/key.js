@@ -1,10 +1,12 @@
 var butler = require('../butler');
 
-exports.start = function(config) {
+module.exports = function(config) {
   config = config || {};
 
   butler.register('key', function() {
     var name = this.method.replace(/^key\./, '');
-    return config[name];
+    var value = config[name];
+    butler.emit('log.debug', 'key', name, value);
+    return value;
   });
-}
+};

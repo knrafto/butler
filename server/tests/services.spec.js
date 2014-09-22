@@ -1,3 +1,0 @@
-describe('services', function() {
-  // TODO
-});

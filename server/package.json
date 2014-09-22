@@ -1,16 +1,27 @@
 {
   "name": "butler",
   "version": "0.1.0",
-  "description": "Butler Server",
+  "description": "Butler system and server",
+  "author": "Kyle Raftogianis <knrafto@gmail.com>",
+  "scripts": {
+    "test": "jasmine-node tests",
+    "start": "node run"
+  },
+  "main": "run.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/knrafto/butler"
+  },
+  "bugs": {
+    "url": "https://github.com/knrafto/butler/issues"
+  },
   "dependencies": {
-    "mopidy": "^0.4.1",
-    "process": "^0.8.0",
-    "q": "^1.0.1",
     "socket.io": "^1.1.0",
     "underscore": "^1.7.0"
   },
   "devDependencies": {
-    "jasmine-node": "^1.14.5",
+    "jasmine-node": "^2.0.0-beta4",
     "proxyquire": "^1.0.1"
-  }
+  },
+  "license": "MIT"
 }

@@ -3,23 +3,22 @@ var _ = require('underscore');
 var butler = require('../butler');
 
 describe('butler', function() {
-  function callback(name) {
-    return jasmine.createSpy(name).and.returnValue(name);
-  }
-
-  var one = callback('one');
-  var two = callback('two');
-  var three = callback('three');
-  var four = callback('four');
-
+  var one, two, three, four;
   var noFoo = new Error('no delegate for method "foo"');
+
+  beforeEach(function() {
+    function callback(name) {
+      return jasmine.createSpy(name).and.returnValue(name);
+    }
+
+    one = callback('one');
+    two = callback('two');
+    three = callback('three');
+    four = callback('four');
+  });
 
   afterEach(function() {
     butler.reset();
-
-    _.each([one, two, three, four], function(spy) {
-      spy.calls.reset();
-    });
   });
 
   describe('.on([name], fn)', function() {

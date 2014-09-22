@@ -1,4 +1,6 @@
 (function(isNode, isAngular) {
+  'use strict';
+
   function butler(_) {
 
     function walk(name) {
@@ -25,8 +27,8 @@
           fn = name;
           name = '';
         }
-        var events = this._events[name] || (this._events[name] = []);
-        events.push(fn);
+        var handlers = this.handlers[name] || (this.handlers[name] = []);
+        handlers.push(fn);
         return this;
       },
 
@@ -35,20 +37,20 @@
           fn = name;
           name = '';
         }
-        var events = this._events[name];
-        if (events) {
-          var i = events.indexOf(fn);
-          if (i > -1) events.splice(i, 1);
+        var handlers = this.handlers[name];
+        if (handlers) {
+          var i = handlers.indexOf(fn);
+          if (i > -1) handlers.splice(i, 1);
         }
         return this;
       },
 
       emit: function(name) {
-        var events = this._events;
+        var handlers = this.handlers;
         var context = { event: name };
         var args = _.toArray(arguments).slice(1);
         var fns = _.chain(walk(name))
-          .map(function(prefix) { return events[prefix]; })
+          .map(function(prefix) { return handlers[prefix]; })
           .compact()
           .flatten()
           .value();
@@ -62,18 +64,18 @@
           fn = name;
           name = '';
         }
-        this._delegates[name] = fn;
+        this.delegates[name] = fn;
         return this;
       },
 
       unregister: function(name) {
         if (!name) name = '';
-        delete this._delegates[name];
+        this.delegates[name] = null;
         return this;
       },
 
       call: function(name) {
-        var delegates = this._delegates
+        var delegates = this.delegates;
         var context = { method: name };
         var args = _.toArray(arguments).slice(1);
         var delegate = _.chain(walk(name))
@@ -86,12 +88,12 @@
       },
 
       reset: function() {
-        this._events = {};
-        this._delegates = {};
+        this.handlers = {};
+        this.delegates = {};
       }
     };
 
-    return new Butler;
+    return new Butler();
   }
 
   if (isNode) {

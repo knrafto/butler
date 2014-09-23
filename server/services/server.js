@@ -5,25 +5,6 @@ var _ = require('underscore');
 
 var butler = require('../butler');
 
-function handle(request) {
-  return Q.try(function() {
-    var args = [request.method].concat(request.params)
-    return butler.call.apply(butler, args);
-  }).then(function(result) {
-    return {
-      result: result,
-      error: null,
-      id: request.id
-    };
-  }, function(err) {
-    return {
-      result: null,
-      error: err,
-      id: request.id
-    };
-  });
-}
-
 module.exports = function(config) {
   config = config || {};
   var httpServer = new http.Server();
@@ -56,3 +37,22 @@ module.exports = function(config) {
     server.emit('event', event);
   });
 };
+
+function handle(request) {
+  return Q.try(function() {
+    var args = [request.method].concat(request.params)
+    return butler.call.apply(butler, args);
+  }).then(function(result) {
+    return {
+      result: result,
+      error: null,
+      id: request.id
+    };
+  }, function(err) {
+    return {
+      result: null,
+      error: err,
+      id: request.id
+    };
+  });
+}

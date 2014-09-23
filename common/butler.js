@@ -47,7 +47,7 @@
 
       emit: function(name) {
         var handlers = this.handlers;
-        var context = { event: name };
+        var context = { event: name }; // TODO: make suffix available
         var args = _.toArray(arguments).slice(1);
         var fns = _.chain(walk(name))
           .map(function(prefix) { return handlers[prefix]; })
@@ -76,7 +76,7 @@
 
       call: function(name) {
         var delegates = this.delegates;
-        var context = { method: name };
+        var context = { method: name }; // TODO: make suffix available
         var args = _.toArray(arguments).slice(1);
         var delegate = _.chain(walk(name))
           .reverse()

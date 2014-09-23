@@ -50,8 +50,9 @@ module.exports = function(config) {
   });
 
   butler.on('exit', function() {
-    log('info', ['exiting...']);
+    // TODO: will not write to file
+    log('info', ['log', 'exiting']);
   });
 
-  log('info', ['starting...']);
+  log('info', ['log', 'starting']);
 };

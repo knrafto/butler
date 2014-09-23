@@ -6,18 +6,18 @@ module.exports = function() {
   });
 
   process.on('SIGINT', function() {
-    process.emit('log.info', 'SIGINT');
+    butler.emit('log.info', 'SIGINT');
     process.exit(0);
   });
 
   process.on('SIGTERM', function() {
-    process.emit('log.info', 'SIGTERM');
+    butler.emit('log.info', 'SIGTERM');
     process.exit(0);
   });
 
   process.on('uncaughtException', function(err) {
     console.log(err.stack);
-    process.emit('log.fatal', err);
+    butler.emit('log.fatal', err);
     process.exit(1);
   });
 };

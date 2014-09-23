@@ -1,73 +1,24 @@
 var EventEmitter = require('events').EventEmitter;
-var util = require('util');
 var Q = require('q');
-var Websocket = require('ws');
+var WebSocket = require('ws');
+var util = require('util');
 var _ = require('underscore');
 
 var butler = require('../butler');
 
-function Connection(url) {
-  var ws = this.ws = new Websocket(url);
+function Connection(address, options) {
   var self = this;
+  var timeoutInterval = 2000;
+  var reconnectInterval = 5000;
 
   this.nextId = 0;
   this.pending = {};
 
-  ws.on('error', function(err) {
-    self._error(err);
-  });
-
-  ws.on('open', function() {
-    self.emit('open');
-  });
-
-  ws.on('close', function(code, message) {
-    self._cancelAll();
-    self.emit('close', code, message);
-  });
-
-  ws.on('message', function(message) {
-    try {
-      var data = JSON.parse(message);
-      if (data.event) {
-        var event = data.event;
-        delete data.event;
-        self.emit('event', event, data);
-      } else {
-        self._receive(data);
-      }
-    } catch (err) {
-      self._error(err);
-    }
-  });
-}
-
-util.inherits(Connection, EventEmitter);
-
-_.extend(Connection.prototype, {
-  request: function(method, params) {
-    var requestId = this.nextId++;
-    var deferred = Q.defer();
-    var request = {
-        id: requestId,
-        jsonrpc: '2.0',
-        method: method,
-        params: params || {}
-    };
-    try {
-      this.ws.send(JSON.stringify(request));
-    } catch (err) {
-      this._error(err);
-    }
-    this.pending[requestId] = deferred;
-    return deferred.promise;
-  },
-
-  _receive: function(response) {
-    var deferred = this.pending[response.id];
-    delete this.pending[response.id];
+  function receive(response) {
+    var deferred = self.pending[response.id];
+    delete self.pending[response.id];
     if (!deferred) {
-      this._error(new Error('unexpected response ' + response));
+      self.emit('error', new Error('unexpected response ' + response));
       return;
     }
     if (response.error) {
@@ -75,19 +26,80 @@ _.extend(Connection.prototype, {
     } else {
       deferred.resolve(response.result);
     }
-  },
+  }
 
-  _cancelAll: function() {
-    _.each(this.pending, function(deferred) {
+  function cancelAll() {
+    _.each(self.pending, function(deferred) {
       deferred.reject(err);
     });
-    this.pending = {};
-  },
+    self.pending = {};
+  }
 
-  _error: function(err) {
+  function connect() {
+    var ws = self.ws = new WebSocket(address, options);
+
+    var timeout = setTimeout(function() {
+      ws.close();
+    }, timeoutInterval);
+
+    ws.on('open', function() {
+      clearTimeout(timeout);
+      self.emit('open');
+    });
+
+    ws.on('close', function(code, message) {
+      clearTimeout(timeout);
+      cancelAll();
+      this.ws = null;
+      self.emit('close', code, message);
+      setTimeout(connect, reconnectInterval);
+    });
+
+    ws.on('message', function(data) {
+      try {
+        data = JSON.parse(data);
+        if (data.event) {
+          var event = data.event;
+          delete data.event;
+          self.emit('event', event, data);
+        } else {
+          receive(data);
+        }
+      } catch (err) {
+        self.emit('error', err);
+      }
+    });
+
+    ws.on('error', function(err) {
+      self.emit('error', err);
+    });
+  }
+
+  connect();
+}
+
+util.inherits(Connection, EventEmitter);
+
+Connection.prototype.request = function(method, params) {
+  if (!this.ws) {
+    throw new Error('WebSocket is not connected');
+  }
+  var requestId = this.nextId++;
+  var deferred = Q.defer();
+  var request = {
+      id: requestId,
+      jsonrpc: '2.0',
+      method: method,
+      params: params || {}
+  };
+  try {
+    this.ws.send(JSON.stringify(request));
+  } catch (err) {
     this.emit('error', err);
   }
-});
+  this.pending[requestId] = deferred;
+  return deferred.promise;
+};
 
 var connection;
 var state = {};
@@ -159,21 +171,14 @@ function sync(properties) {
 }
 
 function notify() {
-  butler.emit('mopidy.state', state);
+  butler.emit('mopidy.update', state);
 }
 
 module.exports = function(config) {
   config = config || {};
   connection = new Connection(config.url);
 
-  butler.register('mopidy', function(params) {
-    var method = this.method
-      .replace(/^mopidy./, '')
-      .replace(/([a-z])([A-Z])/g, function(match, p1, p2) {
-        return p1 + '_' + p2.toLowerCase();
-      });
-    return connection.request(method, params);
-  });
+  // TODO: register delegates
 
   connection.on('error', mopidyError);
 

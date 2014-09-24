@@ -36,13 +36,8 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   .state('app.mopidy.playlist', {
     url: '/playlist/:uri',
     templateUrl: 'templates/mopidy/playlist.html',
-    controller: function($scope, playlist) {
-      $scope.playlist = playlist;
-    },
-    resolve: {
-      playlist: function($stateParams, mopidy) {
-        return mopidy.getPlaylist($stateParams.uri);
-      }
+    controller: function($scope, $stateParams, mopidy) {
+      $scope.playlist = mopidy.getPlaylist($stateParams.uri);
     }
   });
 })
@@ -51,7 +46,25 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
   var tick;
   var lastUpdate;
 
-  function startTimer() {
+  var mopidy = {};
+
+  var methods = 'sync play pause next previous seek queueTrack setTracklist';
+
+  _.each(methods.split(' '), function(method) {
+    mopidy[method] = function() {
+      var args = _.toArray(arguments);
+      return butler.call.apply(butler, ['mopidy.' + method].concat(args));
+    };
+  });
+
+  mopidy.getPlaylist = function(uri) {
+    return _.find(mopidy.playlists, function(playlist) {
+      return playlist.uri === uri;
+    });
+  };
+
+  butler.on('mopidy.update', function(data) {
+    _.extend(mopidy, data);
     if (tick) $interval.cancel(tick);
     if (mopidy.state === 'playing') {
       lastUpdate = Date.now();
@@ -61,126 +74,9 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
         lastUpdate = now;
       }, 100);
     }
-  }
-
-  var mopidy = {
-    sync: sync
-  };
-
-  _.each('play pause previous next'.split(' '), function(method) {
-    mopidy[method] = function() {
-      return butler.call('mopidy.playback.' + method);
-    };
   });
 
-  mopidy.seek = function(position) {
-    return butler.call('mopidy.playback.seek', { time_position: position });
-  }
-
-  _.each('setRandom setRepeat setSingle'.split(' '), function(method) {
-    mopidy[method] = function(value) {
-      return butler.call('mopidy.tracklist.' + method, { value: value });
-    };
-  });
-
-  mopidy.getPlaylist = function(uri) {
-    return butler.call('mopidy.playlists.lookup', { uri: uri });
-  };
-
-  mopidy.queueTrack = function(track) {
-    var index = 0;
-    if (mopidy.currentTlTrack) {
-      var tlid = mopidy.currentTlTrack.tlid;
-      _.find(mopidy.tracklist, function(tlTrack, i) {
-        if (tlTrack.tlid === tlid) {
-          index = i + 1;
-          return true;
-        }
-      });
-    }
-    return butler.call('mopidy.tracklist.add', {
-      tracks: [track],
-      at_position: index
-    });
-  };
-
-  mopidy.setTracklist = function(tracks, track) {
-    return butler.call('mopidy.playback.stop', { clear_current_track: true })
-    .then(function() {
-      butler.call('mopidy.tracklist.clear')
-    })
-    .then(function() {
-      return butler.call('mopidy.tracklist.add', { tracks: tracks })
-    })
-    .then(function() {
-      return butler.call('mopidy.tracklist.getTlTracks')
-    })
-    .then(function(tlTracks) {
-      var tlTrack = _.find(tlTracks, function(tlTrack) {
-        return tlTrack.track.uri === track.uri;
-      });
-      return butler.call('mopidy.playback.play', { tl_track: tlTrack });
-    });
-  };
-
-  var syncMethods = {
-    currentTlTrack: 'mopidy.playback.getCurrentTlTrack',
-    playlists: 'mopidy.playlists.getPlaylists',
-    random: 'mopidy.tracklist.getRandom',
-    repeat: 'mopidy.tracklist.getRepeat',
-    single: 'mopidy.tracklist.getSingle',
-    state: 'mopidy.playback.getState',
-    timePosition: 'mopidy.playback.getTimePosition',
-    tracklist: 'mopidy.tracklist.getTlTracks'
-  };
-
-  function sync(properties) {
-    properties = properties || _.keys(syncMethods);
-    _.each(properties, function(property) {
-      butler.call(syncMethods[property]).then(function(data) {
-        mopidy[property] = data;
-        startTimer();
-      });
-    });
-  }
-
-  butler.on('mopidy.playbackStateChanged', function(data) {
-    mopidy.state = data.new_state;
-    startTimer();
-  });
-
-  butler.on('mopidy.trackPlaybackStarted', function(data) {
-    mopidy.currentTlTrack = data.tl_track;
-    mopidy.timePosition = 0;
-    startTimer();
-  });
-
-  butler.on('mopidy.trackPlaybackPaused', function(data) {
-    mopidy.currentTlTrack = data.tl_track;
-    mopidy.timePosition = data.time_position;
-    startTimer();
-  });
-
-  butler.on('mopidy.seeked', function(data) {
-    mopidy.timePosition = data.time_position;
-    startTimer();
-  });
-
-  butler.on('mopidy.tracklistChanged', function(data) {
-    mopidy.sync(['tracklist']);
-  });
-
-  butler.on('mopidy.optionsChanged', function(data) {
-    mopidy.sync(['random', 'repeat', 'single']);
-  });
-
-  _.each(['mopidy.playlistChanged', 'mopidy.playlistsLoaded'], function(name) {
-    butler.on(name, function() {
-      mopidy.sync(['playlists']);
-    });
-  });
-
-  sync();
+  mopidy.sync();
 
   return mopidy;
 })

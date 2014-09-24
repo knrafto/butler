@@ -155,6 +155,52 @@ var events = {
   }
 };
 
+var methods = {
+  play: 'core.playback.play',
+  pause: 'core.playback.pause',
+  previous: 'core.playback.previous',
+  next: 'core.playback.next',
+  seek: 'core.playback.seek',
+
+  queueTrack: function(track) {
+    var index = 0;
+    if (state.currentTlTrack) {
+      var tlid = state.currentTlTrack.tlid;
+      _.find(state.tracklist, function(tlTrack, i) {
+        if (tlTrack.tlid === tlid) {
+          index = i + 1;
+          return true;
+        }
+      });
+    }
+    return connection.request('core.tracklist.add', {
+      tracks: [track],
+      at_position: index
+    });
+  },
+
+  setTracklist: function(tracks, track) {
+    return connection.request('core.playback.stop', {
+        clear_current_track: true
+    }).then(function() {
+      connection.request('core.tracklist.clear');
+    }).then(function() {
+      return connection.request('core.tracklist.add', { tracks: tracks });
+    }).then(function() {
+      return connection.request('core.tracklist.get_tl_tracks');
+    }).then(function(tlTracks) {
+      var tlTrack = _.find(tlTracks, function(tlTrack) {
+        return tlTrack.track.uri === track.uri;
+      });
+      return connection.request('core.playback.play', {
+        tl_track: tlTrack
+      });
+    });
+  },
+
+  sync: sync
+};
+
 function mopidyError(err) {
   butler.emit('log.error', 'mopidy', err);
 }
@@ -178,13 +224,18 @@ module.exports = function(config) {
   config = config || {};
   connection = new Connection(config.url);
 
-  // TODO: register delegates
+  butler.register('mopidy', function() {
+    var method = methods[this.method.replace(/^mopidy\./, '')];
+    return _.isString(method)
+      ? connection.request(method, _.toArray(arguments))
+      : method.apply(null, arguments);
+  });
 
   connection.on('error', mopidyError);
 
   connection.on('open', function() {
-    sync();
     butler.emit('mopidy.connect');
+    sync();
   });
 
   connection.on('close', function(code, message) {

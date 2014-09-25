@@ -27,13 +27,11 @@ describe('Client', function() {
       }
     };
     requests = [];
+    WebSocket.and.returnValue(socket);
 
+    delete require.cache[require.resolve('../client')];
     var Client = require('../client');
     client = new Client();
-
-    WebSocket.and.callFake(function() {
-      return socket;
-    });
   });
 
   describe('.open(url, [protocols])', function() {
@@ -157,7 +155,7 @@ describe('Client', function() {
       socket.open();
 
       client.request('foo', [1, 2], function(err, result) {
-        expect(err).toBe('oops');
+        expect(err).toEqual(new Error('oops'));
         expect(result).toBe(null);
         done();
       });
@@ -165,7 +163,10 @@ describe('Client', function() {
 
       socket.receive({
         id: 0,
-        error: 'oops',
+        error: {
+          code: 0,
+          message: 'oops'
+        },
         result: null
       });
     });

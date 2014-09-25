@@ -53,7 +53,8 @@ Client.prototype.open = function(url, protocols) {
       self.emit('event', message.event, message);
     } else {
       var callback = self.requests[message.id];
-      if (callback) callback(message.error, message.result);
+      var error = message.error && new Error(message.error.message);
+      if (callback) callback(error, message.result);
     }
   };
 };

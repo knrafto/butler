@@ -1,5 +1,9 @@
 var butler = require('../butler');
 
+/**
+ * @module exit A service that fires an 'exit' event when the server exists,
+ * and logs exit conditions.
+ */
 module.exports = function() {
   process.on('exit', function(code) {
     butler.emit('exit', code);

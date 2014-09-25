@@ -31,8 +31,7 @@ function walk(name) {
  * @constructor
  */
 function Butler() {
-  this.handlers = {};
-  this.delegates = {};
+  this.reset();
 }
 
 /**
@@ -144,6 +143,14 @@ Butler.prototype.apply = function(name, args) {
     .find(_.identity)
     .value();
   return fn && fn.apply(null, args);
+};
+
+/**
+ * Remove all handlers and delegates.
+ */
+Butler.prototype.reset = function() {
+  this.handlers = {};
+  this.delegates = {};
 };
 
 /** @module butler */

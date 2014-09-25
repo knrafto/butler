@@ -154,4 +154,47 @@ describe('Butler', function() {
       ]);
     });
   });
+
+  describe('.apply(name, args)', function() {
+    it('should fire the last delegate', function() {
+      butler.register(spy);
+      butler.register('foo', spy);
+      butler.register('foo.bar', spy);
+      butler.register('foo.baz', spy);
+
+      var results = [butler.apply('foo', [1]), butler.apply('foo.bar.baz', [2])];
+
+      expect(results).toEqual([1, 2]);
+      expect(spy.calls.all()).toEqual([
+       makeCall('foo', 'foo', '', [1]),
+       makeCall('foo.bar.baz', 'foo.bar', 'baz', [2])
+      ]);
+    });
+  });
+
+  describe('.reset()', function() {
+    it('should remove all handlers', function() {
+      butler.on('foo', spy);
+      butler.on('foo', spy);
+      butler.on('bar', spy);
+      butler.reset();
+
+      butler.emit('foo');
+      butler.emit('bar');
+
+      expect(spy.calls.all()).toEqual([]);
+    });
+
+    it('should remove all delegates', function() {
+      butler.register('foo', spy);
+      butler.register('foo', spy);
+      butler.register('bar', spy);
+      butler.reset();
+
+      butler.call('foo');
+      butler.call('bar');
+
+      expect(spy.calls.all()).toEqual([]);
+    });
+  })
 });

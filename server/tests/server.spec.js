@@ -1,164 +1,201 @@
 var EventEmitter = require('events').EventEmitter;
-var proxyquire = require('proxyquire');
 var Q = require('q');
+var ws = require('ws');
 var _ = require('underscore');
 
 var butler = require('../butler');
 
 describe('server', function() {
-  var httpServer, server, socket, start;
+  var server;
+  var start;
+
+  function messages(socket) {
+    return _.map(socket.send.calls.allArgs(), function(args) {
+      expect(args.length).toEqual(1);
+      return JSON.parse(args[0]);
+    });
+  }
 
   beforeEach(function() {
-    httpServer = new EventEmitter();
-    httpServer.listen = jasmine.createSpy('listen');
     server = new EventEmitter();
-    socket = new EventEmitter();
-    start = proxyquire('../services/server', {
-      'http': {
-        Server: _.constant(httpServer)
-      },
-      'socket.io': _.constant(server)
-    });
+    spyOn(ws, 'Server').and.returnValue(server);
+    delete require.cache[require.resolve('../services/server')];
+    start = require('../services/server');
   });
 
   afterEach(function() {
     butler.reset();
   });
 
-  it('should start and close an HTTP server', function() {
+  it('should start a server', function() {
     var config = {
       hostname: 'localhost',
       port: 54010
     };
     start(config);
-    expect(httpServer.listen).toHaveBeenCalledWith(54010, 'localhost');
+    expect(ws.Server).toHaveBeenCalledWith({
+      host: 'localhost',
+      port: 54010
+    });
   });
 
-  it('should send events', function(done) {
-    start();
-    server.on('event', function(event) {
-      expect(event).toEqual({
-        event: 'foo',
+  describe('events', function() {
+    it('should be sent to all open connections', function() {
+      start();
+      var sockets = _.map(_.range(3), function() {
+        var socket =  new EventEmitter();
+        socket.send = jasmine.createSpy('send');
+        server.emit('connection', socket);
+        return socket;
+      });
+
+      butler.emit('foo', 1, 2);
+      butler.emit('bar', 3, 4);
+
+      _.each(sockets, function(socket) {
+        expect(messages(socket)).toEqual([
+          {
+            event: 'foo',
+            params: [1, 2]
+          },
+          {
+            event: 'bar',
+            params: [3, 4]
+          }
+        ]);
+      });
+    });
+
+    it('should not be sent to closed connections', function() {
+      start();
+      _.times(3, function() {
+        var socket =  new EventEmitter();
+        socket.send = _.noop;
+        server.emit('connection', socket);
+      });
+
+      var socket = new EventEmitter();
+      socket.send = jasmine.createSpy('send');
+      server.emit('connection', socket);
+
+      butler.emit('foo', 1, 2);
+      socket.emit('close');
+      butler.emit('bar', 3, 4);
+
+      expect(messages(socket)).toEqual([
+        {
+          event: 'foo',
+          params: [1, 2]
+        }
+      ]);
+    });
+  });
+
+  describe('requests', function() {
+    it('should be responded to', function(done) {
+      start();
+      var socket = new EventEmitter();
+      server.emit('connection', socket);
+
+      butler.register('foo', function(a, b) {
+        return a + b;
+      });
+
+      socket.emit('message', JSON.stringify({
+        id: 10,
+        method: 'foo',
         params: [1, 2]
+      }));
+
+      socket.send = function(message) {
+        expect(JSON.parse(message)).toEqual({
+          id: 10,
+          error: null,
+          result: 3
+        });
+        done();
+      };
+    });
+
+    it('should handle errors', function(done) {
+      start();
+      var socket = new EventEmitter();
+      server.emit('connection', socket);
+
+      butler.register('foo', function() {
+        throw new Error('bam');
       });
-      done();
+
+      socket.emit('message', JSON.stringify({
+        id: 10,
+        method: 'foo',
+        params: [1, 2]
+      }));
+
+      socket.send = function(message) {
+        expect(JSON.parse(message)).toEqual({
+          id: 10,
+          error: {
+            code: 0,
+            message: 'bam'
+          },
+          result: null
+        });
+        done();
+      };
     });
-    butler.emit('foo', 1, 2);
-  });
 
-  it('should respond to requests', function(done) {
-    start();
-    server.emit('connection', socket);
+    it('should wait for promises', function(done) {
+      start();
+      var socket = new EventEmitter();
+      server.emit('connection', socket);
 
-    butler.register('foo', function() {
-      return 'bar';
-    });
-
-    socket.emit('request', {
-      method: 'foo',
-      params: [1, 2],
-      id: 10
-    });
-
-    socket.on('response', function(response) {
-      expect(response).toEqual({
-        result: 'bar',
-        error: null,
-        id: 10
+      butler.register('foo', function(a, b) {
+        return Q(a + b);
       });
-      done();
+
+      socket.emit('message', JSON.stringify({
+        id: 10,
+        method: 'foo',
+        params: [1, 2]
+      }));
+
+      socket.send = function(message) {
+        expect(JSON.parse(message)).toEqual({
+          id: 10,
+          error: null,
+          result: 3
+        });
+        done();
+      };
     });
-  });
 
-  it('should handle general errors', function(done) {
-    start();
-    server.emit('connection', socket);
+    it('should wait for promises with errors', function(done) {
+      start();
+      var socket = new EventEmitter();
+      server.emit('connection', socket);
 
-    butler.register('foo', function() {
-      throw new Error('boom');
-    });
-
-    socket.emit('request', {
-      method: 'foo',
-      params: [1, 2],
-      id: 10
-    });
-
-    socket.on('response', function(response) {
-      expect(response).toEqual({
-        result: null,
-        error: Error('boom'),
-        id: 10
+      butler.register('foo', function(a, b) {
+        return Q.reject(new Error('bam'));
       });
-      done();
-    });
-  });
 
-  it('should handle lookup errors', function(done) {
-    start();
-    server.emit('connection', socket);
+      socket.emit('message', JSON.stringify({
+        id: 10,
+        method: 'foo',
+        params: [1, 2]
+      }));
 
-    socket.emit('request', {
-      method: 'bar',
-      params: [1, 2],
-      id: 10
-    });
-
-    socket.on('response', function(response) {
-      expect(response).toEqual({
-        result: null,
-        error: Error('no delegate for method "bar"'),
-        id: 10
-      });
-      done();
-    });
-  });
-
-  it('should wait for promises', function(done) {
-    start();
-    server.emit('connection', socket);
-
-    butler.register('foo', function() {
-      return Q('bar');
-    });
-
-    socket.emit('request', {
-      method: 'foo',
-      params: [1, 2],
-      id: 10
-    });
-
-    socket.on('response', function(response) {
-      expect(response).toEqual({
-        result: 'bar',
-        error: null,
-        id: 10
-      });
-      done();
-    });
-  });
-
-  it('should wait for promises with errors', function(done) {
-    start();
-    server.emit('connection', socket);
-
-    butler.register('foo', function() {
-      return Q.reject(new Error('boom'));
-    });
-
-    socket.emit('request', {
-      method: 'foo',
-      params: [1, 2],
-      id: 10
-    });
-
-    socket.on('response', function(response) {
-      expect(response).toEqual({
-        result: null,
-        error: Error('boom'),
-        id: 10
-      });
-      done();
+      socket.send = function(message) {
+        expect(JSON.parse(message)).toEqual({
+          id: 10,
+          error: {
+            code: 0,
+            message: 'bam'
+          },
+          result: null
+        });
+        done();
+      };
     });
   });
 });

@@ -16,7 +16,6 @@
     "url": "https://github.com/knrafto/butler/issues"
   },
   "dependencies": {
-    "socket.io": "^1.1.0",
     "underscore": "^1.7.0",
     "ws": "^0.4.32"
   },

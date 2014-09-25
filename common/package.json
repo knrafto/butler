@@ -15,7 +15,8 @@
     "url": "https://github.com/knrafto/butler/issues"
   },
   "dependencies": {
-    "underscore": "^1.7.0"
+    "underscore": "^1.7.0",
+    "ws": "^0.4.32"
   },
   "devDependencies": {
     "jasmine-node": "^2.0.0-beta4"

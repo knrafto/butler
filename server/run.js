@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var fs = require('fs');
 
 var config_path = process.env['HOME'] + '/.config/butler/butler.conf';

@@ -48,14 +48,22 @@ Client.prototype.open = function(url, protocols) {
   };
 
   ws.onmessage = function(event) {
-    var message = JSON.parse(event.data);
-    if (message.event != null) {
-      self.emit('event', message.event, message);
-    } else {
-      var callback = self.requests[message.id];
-      var error = message.error && new Error(message.error.message);
-      if (callback) callback(error, message.result);
+    try {
+      var message = JSON.parse(event.data);
+      if (message.event != null) {
+        self.emit('event', message.event, message);
+      } else {
+        var callback = self.requests[message.id];
+        var error = message.error && new Error(message.error.message);
+        if (callback) callback(error, message.result);
+      }
+    } catch (err) {
+      self.emit('error', err);
     }
+  };
+
+  ws.onerror = function(event) {
+    self.emit('error', event.errno);
   };
 };
 
@@ -74,15 +82,20 @@ Client.prototype.close = function() {
  * @param {function(Error, *)} callback The asynchronous callback.
  */
 Client.prototype.request = function(method, args, callback) {
-  if (!this.connected) throw new Error('WebSocket not connected');
-  var requestId = this.nextId++;
-  this.requests[requestId] = callback;
-  this.ws.send(JSON.stringify({
-    jsonrpc: '2.0',
-    id: requestId,
-    method: method,
-    params: args
-  }));
+  try {
+    if (!this.connected) throw new Error('WebSocket not connected');
+    var requestId = this.nextId++;
+    this.requests[requestId] = callback;
+    this.ws.send(JSON.stringify({
+      jsonrpc: '2.0',
+      id: requestId,
+      method: method,
+      params: args
+    }));
+  } catch (err) {
+    delete this.requests[requestId];
+    callback(err, null);
+  }
 };
 
 /** @module client */

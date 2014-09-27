@@ -12,8 +12,12 @@ describe('Client', function() {
         socket.onopen();
       },
 
-      close: function() {
-        socket.onclose({ code: 1006, reason: 'reason' });
+      close: function(code, reason) {
+        socket.onclose({ code: code, reason: reason });
+      },
+
+      error: function(errno) {
+        socket.onerror({ errno: errno });
       },
 
       send: function(data) {
@@ -48,6 +52,15 @@ describe('Client', function() {
       socket.open();
     });
 
+    it('should emit "error" on error', function(done) {
+      client.open();
+      client.on('error', function(errno) {
+        expect(errno).toEqual('ECONNREFUSED');
+        done();
+      });
+      socket.error('ECONNREFUSED');
+    });
+
     it('should emit "close" on failure', function(done) {
       client.open();
       client.on('close', function(code, reason) {
@@ -55,7 +68,7 @@ describe('Client', function() {
         expect(reason).toEqual('reason');
         done();
       });
-      socket.close();
+      socket.close(1006, 'reason');
     });
 
     it('should close any previous connection', function(done) {
@@ -125,11 +138,13 @@ describe('Client', function() {
       ]);
     });
 
-    it('should throw when not open', function() {
+    it('should throw when not open', function(done) {
       client.open();
-      expect(function() {
-        client.request('foo', [1, 2], _.noop);
-      }).toThrow();
+      client.request('foo', [1, 2], function(err, result) {
+        expect(err).toBeTruthy();
+        expect(result).toBe(null);
+        done();
+      });
     });
 
     it('should call on success', function(done) {

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "underscore": "^1.7.0",
+    "winston": "^0.8.0",
     "ws": "^0.4.32"
   },
   "devDependencies": {

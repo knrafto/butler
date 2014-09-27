@@ -1,58 +1,40 @@
-var fs = require('fs');
-var util = require('util');
+var winston = require('winston');
 var _ = require('underscore');
 
 var butler = require('../butler');
 
-var loggers = [];
-var levels = 'trace debug info warn error fatal'.split(' ');
-
-function index(level) {
-  return levels.indexOf(level);
-}
-
-function log(level, args) {
-  try {
-    args = _.map(args, function(obj) {
-      return _.isString(obj) ? obj : util.inspect(obj);
-    });
-    var message = util.format(
-      '%s %s: %s\n', Date(), level.toUpperCase(), args.join(' ')
-    );
-    _.each(loggers, function(logger) {
-      if (index(level) < index(logger.level)) return;
-      logger.stream.write(message);
-    });
-  } catch (err) {
-    console.log('LOG ERROR:', err);
-  }
-}
-
+/**
+ * @module log A service that listens to log events and logs them to a file
+ * or the console.
+ */
 module.exports = function(config) {
   config = config || {};
 
+  var transports = [];
   if (config.console) {
-    loggers.push({
-      level: config.console.level,
-      stream: process.stdout
-    });
+    transports.push(new winston.transports.Console({
+      level: config.console.level
+    }));
   }
   if (config.file) {
-    loggers.push({
+    transports.push(new winston.transports.File({
       level: config.file.level,
-      stream: fs.createWriteStream(config.file.filename, { flags: 'a' })
-    });
+      filename: config.file.filename
+    }));
   }
 
+  var logger = new winston.Logger({
+    transports: transports
+  });
+
   butler.on('log', function() {
-    var level = this.event.replace(/^log\./, '');
-    log(level, _.toArray(arguments));
+    var log = _.bind(logger.log, logger, this.suffix);
+    log.apply(null, arguments);
   });
 
   butler.on('exit', function() {
-    // TODO: will not write to file
-    log('info', ['log', 'exiting']);
+    logger.info('EXITING');
   });
 
-  log('info', ['log', 'starting']);
+  logger.info('STARTING');
 };

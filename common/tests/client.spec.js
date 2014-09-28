@@ -76,14 +76,6 @@ describe('Client', function() {
       socket.close = done;
       client.open();
     });
-
-    it('should update "connected" property', function() {
-      expect(client.connected).toBe(false);
-      client.open();
-      expect(client.connected).toBe(false);
-      socket.open();
-      expect(client.connected).toBe(true);
-    });
   });
 
   describe('.close()', function() {
@@ -104,14 +96,6 @@ describe('Client', function() {
         expect(true).toBe(false);
       });
       client.close();
-    });
-
-    it('should update "connected" property', function() {
-      client.open();
-      socket.open();
-      expect(client.connected).toBe(true);
-      socket.close();
-      expect(client.connected).toBe(false);
     });
   });
 
@@ -136,15 +120,6 @@ describe('Client', function() {
           params: {3: 4}
         }
       ]);
-    });
-
-    it('should throw when not open', function(done) {
-      client.open();
-      client.request('foo', [1, 2], function(err, result) {
-        expect(err).toBeTruthy();
-        expect(result).toBe(null);
-        done();
-      });
     });
 
     it('should call on success', function(done) {

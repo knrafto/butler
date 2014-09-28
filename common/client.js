@@ -29,17 +29,14 @@ util.inherits(Client, EventEmitter);
 Client.prototype.open = function(url, protocols) {
   this.close();
 
-  this.forceClose = false;
   var ws = this.ws = new WebSocket(url, protocols);
   var self = this;
 
   ws.onopen = function() {
-    self.connected = true;
     self.emit('open');
   };
 
   ws.onclose = function(event) {
-    self.connected = false;
     self.ws = null;
     _.each(self.requests, function(callback) {
       callback(new Error('WebSocket closed'));
@@ -64,6 +61,7 @@ Client.prototype.open = function(url, protocols) {
 
   ws.onerror = function(event) {
     self.emit('error', event.errno);
+    if (self.ws) self.ws.close();
   };
 };
 
@@ -83,7 +81,7 @@ Client.prototype.close = function() {
  */
 Client.prototype.request = function(method, args, callback) {
   try {
-    if (!this.connected) throw new Error('WebSocket not connected');
+    if (!this.ws) throw new Error('WebSocket not connected');
     var requestId = this.nextId++;
     this.requests[requestId] = callback;
     this.ws.send(JSON.stringify({

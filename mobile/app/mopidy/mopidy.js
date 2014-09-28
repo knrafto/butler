@@ -17,7 +17,8 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
 
   .state('app.mopidy.playback', {
     url: '/playback',
-    templateUrl: 'mopidy/playback.html'
+    templateUrl: 'mopidy/playback.html',
+    controller: 'PlaybackCtrl'
   })
 
   .state('app.mopidy.search', {
@@ -39,16 +40,89 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   });
 })
 
+.service('playback', function($interval, butler) {
+  var playback = {};
+
+  var timer;
+  var lastUpdate;
+
+  function startTimer() {
+    $interval.cancel(timer);
+    lastUpdate = Date.now();
+    if (playback.state === 'playing') {
+      $interval(function() {
+        var now = Date.now();
+        playback.timePosition += now - lastUpdate;
+        lastUpdate = now;
+      }, 100);
+    }
+  }
+
+  var syncMethods = {
+    state: 'get_state',
+    currentTlTrack: 'get_current_tl_track',
+    timePosition: 'get_time_position'
+  };
+
+  function sync() {
+    _.each(syncMethods, function(method, prop) {
+      butler.call('mopidy.playback.' + method).then(function(value) {
+        playback[prop] = value;
+        startTimer();
+      });
+    });
+  }
+
+  sync();
+  butler.on('open', sync);
+  butler.on('mopidy', startTimer);
+
+  butler.on('mopidy.playback_state_changed', function(data) {
+    playback.state = data.new_state;
+  });
+
+  butler.on('mopidy.track_playback_started', function(data) {
+    playback.currentTlTrack = data.tl_track;
+    playback.timePosition = 0;
+  });
+
+  butler.on('mopidy.track_playback_paused', function(data) {
+    playback.currentTlTrack = data.tl_track;
+    playback.timePosition = data.time_position;
+  });
+
+  butler.on('mopidy.track_playback_resumed', function(data) {
+    playback.currentTlTrack = data.tl_track;
+    playback.timePosition = data.time_position;
+  });
+
+  butler.on('mopidy.track_playback_stopped', function(data) {
+    playback.currentTlTrack = null;
+    playback.timePosition = 0;
+  });
+
+  butler.on('mopidy.seeked', function(data) {
+    playback.timePosition = data.time_position;
+  });
+
+  return playback;
+
+})
+
+.controller('PlaybackCtrl', function($scope, playback) {
+  $scope.playback = playback;
+})
+
 .directive('mopidyPlayButton', function() {
   return {
     restrict: 'E',
     replace: true,
     template:
       '<button class="button button-icon icon"' +
-      '  ng-class="mopidy.state === \'playing\'' +
+      '  ng-class="playback.state === \'playing\'' +
       '    ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
-      '  ng-click="mopidy.state === \'playing\'' +
-      '    ? mopidy.pause() : mopidy.play()"></button>'
+      '  ng-click="playback.state === \'playing\'' +
+      '    ? playback.pause() : playback.play()"></button>'
   };
 })
 
@@ -58,7 +132,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     replace: true,
     template:
       '<button class="button button-icon icon ion-ios7-skipforward"' +
-      '  ng-click="mopidy.next()"></button>'
+      '  ng-click="playback.next()"></button>'
   };
 })
 
@@ -68,28 +142,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     replace: true,
     template:
       '<button class="button button-icon icon ion-ios7-skipbackward"' +
-      '  ng-click="mopidy.previous()"></button>'
-  };
-})
-
-.directive('mopidyRepeatButton', function() {
-  return {
-    restrict: 'E',
-    replace: true,
-    template:
-      '<button class="button button-icon icon ion-loop"' +
-      '  ng-class="{balanced: mopidy.repeat}"' +
-      '  ng-click="mopidy.setRepeat(!mopidy.repeat)"></button>'
-  };
-})
-
-.directive('mopidyShuffleButton', function() {
-  return {
-    restrict: 'E',
-    replace: true,
-    template:
-      '<button class="button button-icon icon ion-shuffle"' +
-      '  ng-click="mopidy.shuffle()"></button>'
+      '  ng-click="playback.previous()"></button>'
   };
 })
 
@@ -116,13 +169,13 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
         length: 0
       };
 
-      $scope.$watch('mopidy.timePosition', function(position) {
+      $scope.$watch('playback.timePosition', function(position) {
         if (!seeking) {
           $scope.slider.position = position;
         }
       });
 
-      $scope.$watch('mopidy.currentTlTrack.track.length', function(length) {
+      $scope.$watch('playback.currentTlTrack.track.length', function(length) {
         $scope.slider.length = length || 0;
       });
 
@@ -147,18 +200,18 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
       size: '@'
     },
     template: '<img class="album-image"></img>',
-    controller: function($scope, $q, lastfm) {
-      this.getAlbumImage = function() {
-        if (!$scope.album) return $q.reject();
-        return lastfm.getAlbumImage($scope.album, $scope.size);
-      };
+    controller: function($scope, $q) {
+      // this.getAlbumImage = function() {
+      //   if (!$scope.album) return $q.reject();
+      //   return lastfm.getAlbumImage($scope.album, $scope.size);
+      // };
     },
     link: function(scope, element, attr, ctrl) {
       scope.$watch('album.uri', function() {
-        attr.$set('src', '');
-        ctrl.getAlbumImage().then(function(image) {
-          attr.$set('src', image);
-        });
+        // attr.$set('src', '');
+        // ctrl.getAlbumImage().then(function(image) {
+        //   attr.$set('src', image);
+        // });
       });
     }
   };
@@ -216,7 +269,8 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     restrict: 'E',
     replace: true,
     scope: false,
-    templateUrl: 'templates/mopidy/playback-bar.html'
+    templateUrl: 'mopidy/playback-bar.html',
+    controller: 'PlaybackCtrl'
   }
 })
 

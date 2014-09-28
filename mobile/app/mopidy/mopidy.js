@@ -96,7 +96,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     playback.timePosition = data.time_position;
   });
 
-  butler.on('mopidy.track_playback_stopped', function(data) {
+  butler.on('mopidy.track_playback_ended', function(data) {
     playback.currentTlTrack = null;
     playback.timePosition = 0;
   });

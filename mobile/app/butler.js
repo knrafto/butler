@@ -1,7 +1,7 @@
 angular.module('butler', ['underscore'])
 
 // TODO
-.constant('SERVER_URL', 'http://localhost:26532')
+.constant('SERVER_URL', 'ws://localhost:26532')
 
 .factory('butler', function($window, $rootScope, $timeout, $q, SERVER_URL, _) {
   var butler = new $window.common.Butler();
@@ -29,7 +29,7 @@ angular.module('butler', ['underscore'])
   });
 
   client.on('error', function(errno) {
-    butler.emit('error', code);
+    butler.emit('error', errno);
     reconnect();
   });
 
@@ -40,13 +40,17 @@ angular.module('butler', ['underscore'])
   });
 
   butler.register('', function() {
-    var name = this.name;
+    var method = this.name;
     var args = _.toArray(arguments);
-    return $q(function(resolve, reject) {
-      client.request(name, args, function(err, result) {
-        err ? reject(err) : resolve(result);
-      });
+    var deferred = $q.defer();
+    client.request(method, args, function(err, result) {
+      err ? deferred.reject(err) : deferred.resolve(result);
     });
+    return deferred.promise;
+  });
+
+  butler.on('', function() {
+    console.log(this.name, _.toArray(arguments));
   });
 
   return butler;

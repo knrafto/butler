@@ -22,11 +22,15 @@ module.exports = function(config) {
   butler.register('mopidy', function() {
     var method = 'core.' + this.suffix;
     var args = _.toArray(arguments);
-    var deferred = Q.defer();
-    client.request(method, args, function(err, result) {
-      err ? deferred.reject(err) : deferred.resolve(result);
-    });
-    return deferred.promise;
+    try {
+      var deferred = Q.defer();
+      client.request(method, args, function(err, result) {
+        err ? deferred.reject(err) : deferred.resolve(result);
+      });
+      return deferred.promise;
+    } catch (err) {
+      return Q.reject(err);
+    }
   });
 
   client.on('open', function() {

@@ -42,11 +42,17 @@ angular.module('butler', ['underscore'])
   butler.register('', function() {
     var method = this.name;
     var args = _.toArray(arguments);
-    var deferred = $q.defer();
-    client.request(method, args, function(err, result) {
-      err ? deferred.reject(err) : deferred.resolve(result);
-    });
-    return deferred.promise;
+    try {
+      var deferred = $q.defer();
+      client.request(method, args, function(err, result) {
+        $rootScope.$apply(function() {
+          err ? deferred.reject(err) : deferred.resolve(result);
+        });
+      });
+      return deferred.promise;
+    } catch (err) {
+      return $q.reject(err);
+    }
   });
 
   butler.on('', function() {

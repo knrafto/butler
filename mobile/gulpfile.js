@@ -55,7 +55,7 @@ gulp.task('assets', function() {
   .pipe(gulp.dest('dist/fonts'));
 })
 
-gulp.task('watch', function() {
+gulp.task('watch', ['build'], function() {
   var express = require('express');
   var refresh = require('gulp-livereload');
   var livereload = require('connect-livereload');

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jasmine-node tests"
   },
-  "main": "butler.js",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/knrafto/butler"

@@ -105,8 +105,13 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     playback.timePosition = data.time_position;
   });
 
-  return playback;
+  _.each('play pause previous next seek'.split(' '), function(method) {
+    playback[method] = function() {
+      return butler.apply('mopidy.playback.' + method, arguments);
+    };
+  });
 
+  return playback;
 })
 
 .controller('PlaybackCtrl', function($scope, playback) {
@@ -185,7 +190,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
 
       $scope.endSeek = function() {
         seeking = false;
-        $scope.mopidy.seek($scope.slider.position);
+        $scope.playback.seek($scope.slider.position);
       };
     }
   };

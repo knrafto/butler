@@ -1,10 +1,15 @@
 {
   "name": "butler-mobile",
-  "private": "true",
+  "version": "0.1.0",
+  "description": "Butler mobile client",
+  "author": "Kyle Raftogianis <knrafto@gmail.com>",
+  "homepage": "https://github.com/knrafto/butler",
+  "main": "app/app.js",
   "dependencies": {
-    "ionic": "driftyco/ionic-bower#1.0.0-beta.11",
-    "angular-mocks": "~1.2.23",
-    "socket.io-client": "~1.1.0",
+    "ionic": "~0.9.27"
+  },
+  "license": "MIT",
+  "devDependencies": {
     "underscore": "~1.7.0"
   }
 }

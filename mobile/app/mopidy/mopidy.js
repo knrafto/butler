@@ -1,4 +1,4 @@
-angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore'])
+angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
 
 .config(function($stateProvider) {
   $stateProvider
@@ -7,78 +7,36 @@ angular.module('mopidy', ['butler', 'lastfm', 'server', 'ui.router', 'underscore
     url: '/mopidy',
     abstract: true,
     template:
-      '<ion-nav-view></ion-nav-view>',
-    controller: function($scope, mopidy) {
-      $scope.mopidy = mopidy;
-    }
+      '<ion-nav-view></ion-nav-view>'
   })
 
   .state('app.mopidy.home', {
     url: '/home',
-    templateUrl: 'templates/mopidy/home.html'
+    templateUrl: 'mopidy/home.html'
   })
 
   .state('app.mopidy.playback', {
     url: '/playback',
-    templateUrl: 'templates/mopidy/playback.html'
+    templateUrl: 'mopidy/playback.html'
   })
 
   .state('app.mopidy.search', {
     url: '/search',
-    templateUrl: 'templates/mopidy/search.html'
+    templateUrl: 'mopidy/search.html'
   })
 
   .state('app.mopidy.playlists', {
     url: '/playlists',
-    templateUrl: 'templates/mopidy/playlists.html'
+    templateUrl: 'mopidy/playlists.html'
   })
 
   .state('app.mopidy.playlist', {
     url: '/playlist/:uri',
-    templateUrl: 'templates/mopidy/playlist.html',
+    templateUrl: 'mopidy/playlist.html',
     controller: function($scope, $stateParams, mopidy) {
       $scope.playlist = mopidy.getPlaylist($stateParams.uri);
     }
   });
-})
-
-.service('mopidy', function($interval, butler, _) {
-  var tick;
-  var lastUpdate;
-
-  var mopidy = {};
-
-  var methods = 'sync play pause next previous seek queueTrack setTracklist';
-
-  _.each(methods.split(' '), function(method) {
-    mopidy[method] = function() {
-      var args = _.toArray(arguments);
-      return butler.call.apply(butler, ['mopidy.' + method].concat(args));
-    };
-  });
-
-  mopidy.getPlaylist = function(uri) {
-    return _.find(mopidy.playlists, function(playlist) {
-      return playlist.uri === uri;
-    });
-  };
-
-  butler.on('mopidy.update', function(data) {
-    _.extend(mopidy, data);
-    if (tick) $interval.cancel(tick);
-    if (mopidy.state === 'playing') {
-      lastUpdate = Date.now();
-      tick = $interval(function() {
-        var now = Date.now();
-        mopidy.timePosition += now - lastUpdate;
-        lastUpdate = now;
-      }, 100);
-    }
-  });
-
-  mopidy.sync();
-
-  return mopidy;
 })
 
 .directive('mopidyPlayButton', function() {

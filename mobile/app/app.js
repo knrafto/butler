@@ -1,9 +1,9 @@
-angular.module('app', ['mopidy', 'ionic'])
+angular.module('app', ['mopidy', 'templates', 'ionic'])
 
 .config(function($stateProvider, $urlRouterProvider) {
   $stateProvider.state('app', {
     abstract: true,
-    templateUrl: 'templates/menu.html',
+    templateUrl: 'menu.html',
   });
 
   $urlRouterProvider.otherwise('/mopidy/home');

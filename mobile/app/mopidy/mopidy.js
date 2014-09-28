@@ -50,7 +50,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     $interval.cancel(timer);
     lastUpdate = Date.now();
     if (playback.state === 'playing') {
-      $interval(function() {
+      timer = $interval(function() {
         var now = Date.now();
         playback.timePosition += now - lastUpdate;
         lastUpdate = now;
@@ -185,12 +185,16 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
       });
 
       $scope.startSeek = function() {
+        console.log('start');
         seeking = true;
+        console.log('start');
       };
 
       $scope.endSeek = function() {
+        console.log('end');
         seeking = false;
         $scope.playback.seek($scope.slider.position);
+        console.log('end');
       };
     }
   };

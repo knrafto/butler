@@ -122,13 +122,21 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   return {
     restrict: 'E',
     replace: true,
+    scope: true,
     template:
       '<button class="button button-icon icon"' +
-      '  ng-class="playback.state === \'playing\'' +
-      '    ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
-      '  ng-click="playback.state === \'playing\'' +
-      '    ? playback.pause() : playback.play()"></button>'
-  };
+      '  ng-class="playing ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
+      '  ng-click="playing ? playback.pause() : playback.play()"></button>',
+    controller: function($scope, _) {
+      $scope.playing = false;
+
+      $scope.$watch('playback.state', _.debounce(function() {
+        $scope.$apply(function() {
+          $scope.playing = $scope.playback.state === 'playing';
+        });
+      }, 100));
+    }
+  }
 })
 
 .directive('mopidyNextButton', function() {

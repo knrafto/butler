@@ -1,4 +1,4 @@
-angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
+angular.module('mopidy', ['butler'])
 
 .config(function($stateProvider) {
   $stateProvider
@@ -40,27 +40,26 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   });
 })
 
-.service('playback', function($rootScope, $interval, butler) {
+.service('playback', function($interval, butler, debounce) {
   var playback = {};
   var buffer = {};
+  var updateInterval = 50;
 
   var timer;
   var lastUpdate;
-  var updateInterval = 100;
+  var timerInterval = 100;
 
-  var update = _.debounce(function() {
-    $rootScope.$apply(function() {
-      _.extend(playback, buffer);
-      $interval.cancel(timer);
-      lastUpdate = Date.now();
-      if (playback.state === 'playing') {
-        timer = $interval(function() {
-          var now = Date.now();
-          playback.timePosition += now - lastUpdate;
-          lastUpdate = now;
-        }, updateInterval);
-      }
-    });
+  var update = debounce(function() {
+    _.extend(playback, buffer);
+    $interval.cancel(timer);
+    lastUpdate = Date.now();
+    if (playback.state === 'playing') {
+      timer = $interval(function() {
+        var now = Date.now();
+        playback.timePosition += now - lastUpdate;
+        lastUpdate = now;
+      }, timerInterval);
+    }
   }, updateInterval);
 
   var syncMethods = {
@@ -327,7 +326,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   };
 })
 
-.filter('pluck', function(_) {
+.filter('pluck', function() {
   return function(input, name) {
     return _.pluck(input, name);
   };

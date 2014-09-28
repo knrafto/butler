@@ -1,9 +1,9 @@
-angular.module('butler', ['underscore'])
+angular.module('butler', ['ui.router', 'templates'])
 
 // TODO
 .constant('SERVER_URL', 'ws://localhost:26532')
 
-.factory('butler', function($window, $rootScope, $timeout, $q, SERVER_URL, _) {
+.factory('butler', function($window, $rootScope, $timeout, $q, SERVER_URL) {
   var butler = new $window.common.Butler();
   var client = new $window.common.Client();
 
@@ -56,8 +56,16 @@ angular.module('butler', ['underscore'])
   });
 
   butler.on('', function() {
-    console.log(this.name, _.toArray(arguments));
+    console.log(Date.now(), this.name, _.toArray(arguments));
   });
 
   return butler;
+})
+
+.factory('debounce', function($rootScope) {
+  return function debounce(fn, wait, immediate) {
+    return _.debounce(function() {
+      $rootScope.$apply(fn)
+    }, wait, immediate);
+  };
 });

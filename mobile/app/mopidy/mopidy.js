@@ -40,23 +40,28 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   });
 })
 
-.service('playback', function($interval, butler) {
+.service('playback', function($rootScope, $interval, butler) {
   var playback = {};
+  var buffer = {};
 
   var timer;
   var lastUpdate;
+  var updateInterval = 100;
 
-  function startTimer() {
-    $interval.cancel(timer);
-    lastUpdate = Date.now();
-    if (playback.state === 'playing') {
-      timer = $interval(function() {
-        var now = Date.now();
-        playback.timePosition += now - lastUpdate;
-        lastUpdate = now;
-      }, 100);
-    }
-  }
+  var update = _.debounce(function() {
+    $rootScope.$apply(function() {
+      _.extend(playback, buffer);
+      $interval.cancel(timer);
+      lastUpdate = Date.now();
+      if (playback.state === 'playing') {
+        timer = $interval(function() {
+          var now = Date.now();
+          playback.timePosition += now - lastUpdate;
+          lastUpdate = now;
+        }, updateInterval);
+      }
+    });
+  }, updateInterval);
 
   var syncMethods = {
     state: 'get_state',
@@ -67,42 +72,41 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   function sync() {
     _.each(syncMethods, function(method, prop) {
       butler.call('mopidy.playback.' + method).then(function(value) {
-        playback[prop] = value;
-        startTimer();
+        buffer[prop] = value;
+        update();
       });
     });
   }
 
-  sync();
   butler.on('open', sync);
-  butler.on('mopidy', startTimer);
+  butler.on('mopidy', update);
 
   butler.on('mopidy.playback_state_changed', function(data) {
-    playback.state = data.new_state;
+    buffer.state = data.new_state;
   });
 
   butler.on('mopidy.track_playback_started', function(data) {
-    playback.currentTlTrack = data.tl_track;
-    playback.timePosition = 0;
+    buffer.currentTlTrack = data.tl_track;
+    buffer.timePosition = 0;
   });
 
   butler.on('mopidy.track_playback_paused', function(data) {
-    playback.currentTlTrack = data.tl_track;
-    playback.timePosition = data.time_position;
+    buffer.currentTlTrack = data.tl_track;
+    buffer.timePosition = data.time_position;
   });
 
   butler.on('mopidy.track_playback_resumed', function(data) {
-    playback.currentTlTrack = data.tl_track;
-    playback.timePosition = data.time_position;
+    buffer.currentTlTrack = data.tl_track;
+    buffer.timePosition = data.time_position;
   });
 
   butler.on('mopidy.track_playback_ended', function(data) {
-    playback.currentTlTrack = null;
-    playback.timePosition = 0;
+    buffer.currentTlTrack = null;
+    buffer.timePosition = 0;
   });
 
   butler.on('mopidy.seeked', function(data) {
-    playback.timePosition = data.time_position;
+    buffer.timePosition = data.time_position;
   });
 
   _.each('play pause previous next seek'.split(' '), function(method) {
@@ -126,15 +130,17 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
     template:
       '<button class="button button-icon icon"' +
       '  ng-class="playing ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
-      '  ng-click="playing ? playback.pause() : playback.play()"></button>',
-    controller: function($scope, _) {
+      '  ng-click="toggle()"></button>',
+    controller: function($scope) {
       $scope.playing = false;
 
-      $scope.$watch('playback.state', _.debounce(function() {
-        $scope.$apply(function() {
-          $scope.playing = $scope.playback.state === 'playing';
-        });
-      }, 100));
+      $scope.$watch('playback.state === \'playing\'', function(playing) {
+        $scope.playing = playing;
+      });
+
+      $scope.toggle = function() {
+        $scope.playing ? $scope.playback.pause() : $scope.playback.play();
+      };
     }
   }
 })
@@ -197,7 +203,10 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
       };
 
       $scope.endSeek = function() {
-        $scope.playback.seek($scope.slider.position);
+        seeking = false;
+        var position = $scope.slider.position;
+        $scope.playback.timePosition = position;
+        $scope.playback.seek(position);
       };
     }
   };

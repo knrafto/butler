@@ -296,7 +296,7 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
   };
 })
 
-.directive('stopEvent', function () {
+.directive('stopEvent', function() {
   return {
     restrict: 'A',
     scope: {

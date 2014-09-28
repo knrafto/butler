@@ -80,20 +80,15 @@ Client.prototype.close = function() {
  * @param {function(Error, *)} callback The asynchronous callback.
  */
 Client.prototype.request = function(method, args, callback) {
-  try {
-    if (!this.ws) throw new Error('WebSocket not connected');
-    var requestId = this.nextId++;
-    this.requests[requestId] = callback;
-    this.ws.send(JSON.stringify({
-      jsonrpc: '2.0',
-      id: requestId,
-      method: method,
-      params: args
-    }));
-  } catch (err) {
-    delete this.requests[requestId];
-    callback(err, null);
-  }
+  if (!this.ws) throw new Error('WebSocket not connected');
+  var requestId = this.nextId++;
+  this.requests[requestId] = callback;
+  this.ws.send(JSON.stringify({
+    jsonrpc: '2.0',
+    id: requestId,
+    method: method,
+    params: args
+  }));
 };
 
 /** @module client */

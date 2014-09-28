@@ -170,8 +170,8 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
       '  <input integer type="range"' +
       '    min="0" max="{{slider.length}}"' +
       '    ng-model="slider.position"' +
-      '    on-touch="startSeek()"' +
-      '    on-release="endSeek()">' +
+      '    ng-mousedown="startSeek()"' +
+      '    ng-mouseup="endSeek()">' +
       '  <i>{{slider.length | time}}</i>' +
       '</div>',
     controller: function($scope) {
@@ -193,16 +193,11 @@ angular.module('mopidy', ['butler', 'ui.router', 'templates', 'underscore'])
       });
 
       $scope.startSeek = function() {
-        console.log('start');
         seeking = true;
-        console.log('start');
       };
 
       $scope.endSeek = function() {
-        console.log('end');
-        seeking = false;
         $scope.playback.seek($scope.slider.position);
-        console.log('end');
       };
     }
   };

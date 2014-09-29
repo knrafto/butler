@@ -16,6 +16,8 @@
     "url": "https://github.com/knrafto/butler/issues"
   },
   "dependencies": {
+    "lru-cache": "^2.5.0",
+    "request": "^2.44.0",
     "underscore": "^1.7.0",
     "winston": "^0.8.0",
     "ws": "^0.4.32"

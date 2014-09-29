@@ -1,67 +1,80 @@
 var _ = require('underscore');
 require('ws');
 
+var socket;
+
+function WebSocket(url, protocols) {
+  this.url = url;
+  this.sent = [];
+  this.closed = false;
+
+  socket = this;
+}
+
+_.each(['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'], function(state, index) {
+  WebSocket.prototype[state] = WebSocket[state] = index;
+});
+
+WebSocket.prototype.open = function() {
+  (this.onopen || _.noop)();
+};
+
+WebSocket.prototype.close = function(code, reason) {
+  this.closed = true;
+  (this.onclose || _.noop)({ code: code, reason: reason });
+};
+
+WebSocket.prototype.send = function(data) {
+  this.sent.push(JSON.parse(data));
+};
+
+WebSocket.prototype.receive = function(data) {
+  (this.onmessage || _.noop)({ data: JSON.stringify(data) });
+};
+
+WebSocket.prototype.error = function() {
+  (this.onerror || _.noop)({});
+};
+
+require.cache[require.resolve('ws')].exports = WebSocket;
+var Client = require('../client');
+delete require.cache[require.resolve('ws')];
+delete require.cache[require.resolve('../client')];
+
 describe('Client', function() {
-  var WebSocket, socket, requests;
   var client;
+  var url = 'ws://example.com';
 
   beforeEach(function() {
-    WebSocket = spyOn(require.cache[require.resolve('ws')], 'exports');
-    socket = {
-      open: function() {
-        socket.onopen();
-      },
-
-      close: function(code, reason) {
-        socket.onclose({ code: code, reason: reason });
-      },
-
-      error: function(errno) {
-        socket.onerror({ errno: errno });
-      },
-
-      send: function(data) {
-        requests.push(JSON.parse(data));
-      },
-
-      receive: function(data) {
-        socket.onmessage({
-          data: JSON.stringify(data)
-        });
-      }
-    };
-    requests = [];
-    WebSocket.and.returnValue(socket);
-
-    delete require.cache[require.resolve('../client')];
-    var Client = require('../client');
     client = new Client();
   });
 
-  describe('.open(url, [protocols])', function() {
+  describe('.open(url)', function() {
     it('should attempt to open a new connection', function() {
-      var url = 'ws://example.com';
-      var protocols = ['protocol1', 'protocol2'];
-      client.open(url, protocols);
-      expect(WebSocket).toHaveBeenCalledWith(url, protocols);
+      client.open(url);
+      expect(socket.url).toEqual(url);
     });
 
     it('should emit "open" on success', function(done) {
-      client.open();
+      client.open(url);
       client.on('open', done);
       socket.open();
     });
 
-    it('should emit "error" on error', function(done) {
+    it('should emit "error" on error before opening', function(done) {
       client.open();
-      client.on('error', function(errno) {
-        expect(errno).toEqual('ECONNREFUSED');
-        done();
-      });
-      socket.error('ECONNREFUSED');
+      client.on('error', done);
+      socket.error();
     });
 
-    it('should emit "close" on failure', function(done) {
+    it('should emit "error" on error after opening', function(done) {
+      client.open();
+      socket.open();
+      client.on('error', done);
+      socket.error();
+    });
+
+    it('should emit "close" on failure before opening', function(done) {
       client.open();
       client.on('close', function(code, reason) {
         expect(code).toEqual(1006);
@@ -71,27 +84,67 @@ describe('Client', function() {
       socket.close(1006, 'reason');
     });
 
-    it('should close any previous connection', function(done) {
+    it('should emit "close" on failure after opening', function(done) {
       client.open();
-      socket.close = done;
+      socket.open();
+      client.on('close', function(code, reason) {
+        expect(code).toEqual(1006);
+        expect(reason).toEqual('reason');
+        done();
+      });
+      socket.close(1006, 'reason');
+    });
+
+    it('should close any previous connection before opening', function(done) {
+      client.open();
+      client.on('close', done);
+      client.open();
+    });
+
+    it('should close any previous connection after opening', function(done) {
+      client.open();
+      socket.open();
+      client.on('close', done);
       client.open();
     });
   });
 
   describe('.close()', function() {
-    it('should close the connection', function(done) {
+    it('should close the connection', function() {
       client.open();
-      socket.close = done;
       client.close();
+      expect(socket.closed).toBe(true);
+
+      client.open();
+      socket.open();
+      client.close();
+      expect(socket.closed).toBe(true);
     });
 
-    it('should emit "close"', function(done) {
+    it('should emit "close" before opening', function(done) {
       client.open();
       client.on('close', done);
       client.close();
     });
 
+    it('should emit "close" after opening', function(done) {
+      client.open();
+      socket.open();
+      client.on('close', done);
+      client.close();
+    });
+
     it('should do nothing when not open', function() {
+      client.on('close', function() {
+        expect(true).toBe(false);
+      });
+      client.close();
+    });
+
+    it('should do nothing when closing', function() {
+      client.open();
+      socket.open();
+      client.close();
       client.on('close', function() {
         expect(true).toBe(false);
       });
@@ -106,7 +159,7 @@ describe('Client', function() {
 
       client.request('foo', [1, 2], _.noop);
       client.request('bar', {3: 4}, _.noop);
-      expect(requests).toEqual([
+      expect(socket.sent).toEqual([
         {
           jsonrpc: '2.0',
           id: 0,
@@ -122,7 +175,7 @@ describe('Client', function() {
       ]);
     });
 
-    it('should call on success', function(done) {
+    it('should call the callback on success', function(done) {
       client.open();
       socket.open();
 
@@ -140,7 +193,7 @@ describe('Client', function() {
       });
     });
 
-    it('should call on error', function(done) {
+    it('should call the callback on error', function(done) {
       client.open();
       socket.open();
 
@@ -161,7 +214,7 @@ describe('Client', function() {
       });
     });
 
-    it('should call on close', function(done) {
+    it('should call the callback on close', function(done) {
       client.open();
       socket.open();
 

@@ -11,7 +11,7 @@ var _ = require('underscore');
  * @property {Boolean} connected The WebSocket connection state.
  */
 function Client() {
-  this.connected = false;
+  this.readyState = Client.CLOSED;
   this.ws = null;
 
   this.nextId = 0;
@@ -20,23 +20,29 @@ function Client() {
 
 util.inherits(Client, EventEmitter);
 
+_.each(['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'], function(state, index) {
+  Client.prototype[state] = Client[state] = index;
+});
+
 /**
  * Open the connection on the given url and protocols, closing any previous
  * connection. Upon a successful connection, the 'open' event will fire.
  * @param {string} url The server URL.
- * @param {(string|Array.<string>)=} protocols The protocols to use.
  */
-Client.prototype.open = function(url, protocols) {
+Client.prototype.open = function(url) {
   this.close();
 
-  var ws = this.ws = new WebSocket(url, protocols);
+  var ws = this.ws = new WebSocket(url);
+  this.readyState = Client.CONNECTING;
   var self = this;
 
   ws.onopen = function() {
+    self.readyState = Client.OPEN;
     self.emit('open');
   };
 
   ws.onclose = function(event) {
+    self.readyState = Client.CLOSED;
     self.ws = null;
     _.each(self.requests, function(callback) {
       callback(new Error('WebSocket closed'));
@@ -59,9 +65,8 @@ Client.prototype.open = function(url, protocols) {
     }
   };
 
-  ws.onerror = function(event) {
-    self.emit('error', event.errno);
-    if (self.ws) self.ws.close();
+  ws.onerror = function() {
+    self.emit('error', new Error('WebSocket error'));
   };
 };
 
@@ -69,8 +74,10 @@ Client.prototype.open = function(url, protocols) {
  * Close the connection, if it exists. This will cancel any pending requests
  * and fire the 'close' event. The connection will not try to reconnect.
  */
-Client.prototype.close = function() {
-  if (this.ws) this.ws.close();
+Client.prototype.close = function(code, reason) {
+  if (!this.ws) return;
+  self.readyState = Client.CLOSING;
+  this.ws.close(code, reason);
 };
 
 /**
@@ -80,7 +87,9 @@ Client.prototype.close = function() {
  * @param {function(Error, *)} callback The asynchronous callback.
  */
 Client.prototype.request = function(method, args, callback) {
-  if (!this.ws) throw new Error('WebSocket not connected');
+  if (this.readyState != Client.OPEN) {
+    throw new Error('Client not connected');
+  }
   var requestId = this.nextId++;
   this.requests[requestId] = callback;
   this.ws.send(JSON.stringify({

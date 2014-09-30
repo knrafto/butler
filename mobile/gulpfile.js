@@ -3,59 +3,90 @@ var browserify = require('browserify');
 var buffer = require('vinyl-buffer');
 var clean = require('gulp-clean');
 var concat = require('gulp-concat');
+var sass = require('gulp-sass');
 var source = require('vinyl-source-stream');
 var templateCache = require('gulp-angular-templatecache');
 
-gulp.task('clean', function () {
+var paths = {
+  lib: [
+    'components/ionic/release/js/ionic.bundle.js',
+    'components/underscore/underscore.js'
+  ],
+  common: '../common',
+  bundle: 'app/**/*.js',
+  index: 'app/index.html',
+  templates: [
+    'app/**/*.html',
+    '!app/index.html'
+  ],
+  css: 'components/ionic/release/css/ionic.css',
+  sass: 'app/**/*.scss',
+  fonts: 'components/ionic/release/fonts/*'
+};
+
+gulp.task('clean', function() {
   gulp.src('dist', { read: false })
   .pipe(clean());
 });
 
-gulp.task('common', function() {
+gulp.task('lib', function() {
+  gulp.src(paths.lib)
+  .pipe(concat('lib.js'))
+  .pipe(gulp.dest('dist/js'));
 });
 
-gulp.task('js', function() {
+gulp.task('common', function() {
   browserify({
     standalone: 'common',
-    entries: '../common'
+    entries: paths.common
   })
   .bundle()
   .pipe(source('common.js'))
   .pipe(buffer())
   .pipe(gulp.dest('dist/js'));
+});
 
-  gulp.src([
-    'components/ionic/release/js/ionic.bundle.js',
-    'components/underscore/underscore.js'
-  ])
-  .pipe(concat('lib.js'))
-  .pipe(gulp.dest('dist/js'));
-
-  gulp.src('app/**/*.js')
+gulp.task('bundle', function() {
+  gulp.src(paths.bundle)
   .pipe(concat('bundle.js'))
   .pipe(gulp.dest('dist/js'));
 });
 
-gulp.task('html', function() {
-  gulp.src('app/index.html')
+gulp.task('index', function() {
+  gulp.src(paths.index)
   .pipe(gulp.dest('dist/'));
+});
 
-  gulp.src(['app/**/*.html', '!app/index.html'])
+gulp.task('templates', function() {
+  gulp.src(paths.templates)
   .pipe(templateCache({ standalone: true }))
   .pipe(gulp.dest('dist/js'));
 });
 
 gulp.task('css', function() {
-  gulp.src('components/ionic/release/css/ionic.css')
+  gulp.src(paths.css)
   .pipe(gulp.dest('dist/css'));
 });
 
-gulp.task('assets', function() {
-  gulp.src('components/ionic/release/fonts/*')
+gulp.task('sass', function() {
+  gulp.src(paths.sass)
+  .pipe(sass())
+  .pipe(concat('bundle.css'))
+  .pipe(gulp.dest('dist/css'));
+});
+
+gulp.task('fonts', function() {
+  gulp.src(paths.fonts)
   .pipe(gulp.dest('dist/fonts'));
 })
 
-gulp.task('watch', ['build'], function() {
+var buildTasks = [
+  'lib', 'common', 'bundle', 'index', 'templates', 'css', 'sass', 'fonts'
+];
+
+gulp.task('build', buildTasks);
+
+gulp.task('watch', buildTasks, function() {
   var express = require('express');
   var refresh = require('gulp-livereload');
   var livereload = require('connect-livereload');
@@ -67,15 +98,13 @@ gulp.task('watch', ['build'], function() {
   server.use(express.static('./dist'));
   server.listen(serverPort);
   refresh.listen(livereloadPort);
+  gulp.watch('dist/**').on('change', refresh.changed);
 
   // TODO: watchify
-  gulp.watch(['../common/**/*.js', 'app/**/*.js'], ['js']);
-  gulp.watch('app/**/*.html', ['html']);
-
-  gulp.watch('dist/**').on('change', refresh.changed);
+  buildTasks.forEach(function(task) {
+    gulp.watch(paths[task], [task]);
+  });
 });
-
-gulp.task('build', ['js', 'html', 'css', 'assets']);
 
 gulp.task('default', function () {
   gulp.start('watch');

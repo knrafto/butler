@@ -28,6 +28,8 @@
     "vinyl-source-stream": "^1.0.0"
   },
   "dependencies": {
+    "lru-cache": "^2.5.0",
+    "request": "^2.44.0",
     "underscore": "^1.7.0"
   }
 }

@@ -220,18 +220,26 @@ angular.module('mopidy', ['butler'])
       size: '@'
     },
     template: '<img class="album-image"></img>',
-    controller: function($scope, $q) {
-      // this.getAlbumImage = function() {
-      //   if (!$scope.album) return $q.reject();
-      //   return lastfm.getAlbumImage($scope.album, $scope.size);
-      // };
+    controller: function($scope, $q, butler) {
+      this.getAlbumImage = function() {
+        var album = $scope.album;
+        if (!album) return $q.reject();
+        return butler.call(
+          'lastfm.albumInfo', album.name, album.artists[0].name
+        ).then(function(data) {
+          var image = _.find(data.album.image,
+            _.matches({ size: $scope.size }));
+          console.log(image);
+          return image && image['#text'];
+        });
+      };
     },
     link: function(scope, element, attr, ctrl) {
       scope.$watch('album.uri', function() {
-        // attr.$set('src', '');
-        // ctrl.getAlbumImage().then(function(image) {
-        //   attr.$set('src', image);
-        // });
+        attr.$set('src', '');
+        ctrl.getAlbumImage().then(function(image) {
+          attr.$set('src', image);
+        });
       });
     }
   };

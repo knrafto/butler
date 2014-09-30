@@ -76,7 +76,7 @@ Client.prototype.open = function(url) {
  */
 Client.prototype.close = function(code, reason) {
   if (!this.ws) return;
-  self.readyState = Client.CLOSING;
+  this.readyState = Client.CLOSING;
   this.ws.close(code, reason);
 };
 

@@ -41,16 +41,16 @@ angular.module('mopidy', ['butler'])
 })
 
 .service('playback', function($interval, butler, debounce) {
-  var playback = {};
-  var buffer = {};
-  var updateInterval = 50;
+  var playback = {
+    state: 'stopped',
+    currentTlTrack: null,
+    timePosition: 0
+  };
 
   var timer;
   var lastUpdate;
-  var timerInterval = 100;
 
-  var update = debounce(function() {
-    _.extend(playback, buffer);
+  function updateTimer() {
     $interval.cancel(timer);
     lastUpdate = Date.now();
     if (playback.state === 'playing') {
@@ -58,61 +58,96 @@ angular.module('mopidy', ['butler'])
         var now = Date.now();
         playback.timePosition += now - lastUpdate;
         lastUpdate = now;
-      }, timerInterval);
+      }, 100);
     }
+  }
+
+  var updateInterval = 100;
+
+  var setState = debounce(function(state) {
+    var old = playback.state;
+    playback.state = state;
+    if (state !== old) updateTimer();
   }, updateInterval);
 
-  var syncMethods = {
-    state: 'get_state',
-    currentTlTrack: 'get_current_tl_track',
-    timePosition: 'get_time_position'
-  };
+  var setCurrentTlTrack = debounce(function(track) {
+    playback.currentTlTrack = track;
+  }, updateInterval);
+
+  var setTimePosition = debounce(function(position) {
+    playback.timePosition = position;
+    updateTimer();
+  }, updateInterval);
+
+  function fetch(method, setter) {
+    butler.call(method).then(setter);
+  }
 
   function sync() {
-    _.each(syncMethods, function(method, prop) {
-      butler.call('mopidy.playback.' + method).then(function(value) {
-        buffer[prop] = value;
-        update();
-      });
-    });
+    fetch('mopidy.playback.get_state', setState);
+    fetch('mopidy.playback.get_current_tl_track', setCurrentTlTrack);
+    fetch('mopidy.playback.get_time_position', setTimePosition);
   }
 
   butler.on('open', sync);
-  butler.on('mopidy', update);
 
   butler.on('mopidy.playback_state_changed', function(data) {
-    buffer.state = data.new_state;
+    setState(data.new_state);
   });
 
   butler.on('mopidy.track_playback_started', function(data) {
-    buffer.currentTlTrack = data.tl_track;
-    buffer.timePosition = 0;
+    setCurrentTlTrack(data.tl_track);
+    setTimePosition(0);
   });
 
   butler.on('mopidy.track_playback_paused', function(data) {
-    buffer.currentTlTrack = data.tl_track;
-    buffer.timePosition = data.time_position;
+    setCurrentTlTrack(data.tl_track);
+    setTimePosition(data.time_position);
   });
 
   butler.on('mopidy.track_playback_resumed', function(data) {
-    buffer.currentTlTrack = data.tl_track;
-    buffer.timePosition = data.time_position;
+    setCurrentTlTrack(data.tl_track);
+    setTimePosition(data.time_position);
   });
 
   butler.on('mopidy.track_playback_ended', function(data) {
-    buffer.currentTlTrack = null;
-    buffer.timePosition = 0;
+    setCurrentTlTrack(null);
+    setTimePosition(0);
   });
 
   butler.on('mopidy.seeked', function(data) {
-    buffer.timePosition = data.time_position;
+    setTimePosition(data.time_position);
   });
 
-  _.each('play pause previous next seek'.split(' '), function(method) {
-    playback[method] = function() {
-      return butler.apply('mopidy.playback.' + method, arguments);
-    };
-  });
+  function save(method) {
+    var args = _.toArray(arguments).slice(1);
+    butler.apply(method, args).then(undefined, sync);
+  }
+
+  playback.play = function() {
+    playback.state === 'playing';
+    save('mopidy.playback.play');
+  };
+
+  playback.pause = function() {
+    playback.state === 'paused';
+    save('mopidy.playback.pause');
+  };
+
+  playback.next = function() {
+    // TODO: tlTrack
+    save('mopidy.playback.next');
+  };
+
+  playback.previous = function() {
+    // TODO: tlTrack
+    save('mopidy.playback.previous');
+  };
+
+  playback.seek = function(position) {
+    playback.timePosition = position;
+    save('mopidy.playback.seek', position);
+  };
 
   return playback;
 })
@@ -131,8 +166,6 @@ angular.module('mopidy', ['butler'])
       '  ng-class="playing ? \'ion-ios7-pause\' : \'ion-ios7-play\'"' +
       '  ng-click="toggle()"></button>',
     controller: function($scope) {
-      $scope.playing = false;
-
       $scope.$watch('playback.state === \'playing\'', function(playing) {
         $scope.playing = playing;
       });
@@ -203,9 +236,7 @@ angular.module('mopidy', ['butler'])
 
       $scope.endSeek = function() {
         seeking = false;
-        var position = $scope.slider.position;
-        $scope.playback.timePosition = position;
-        $scope.playback.seek(position);
+        $scope.playback.seek($scope.slider.position);
       };
     }
   };
@@ -335,9 +366,7 @@ angular.module('mopidy', ['butler'])
 })
 
 .filter('pluck', function() {
-  return function(input, name) {
-    return _.pluck(input, name);
-  };
+  return _.pluck;
 })
 
 .filter('join', function() {

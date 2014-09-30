@@ -65,7 +65,11 @@ angular.module('butler', ['ui.router', 'templates'])
 .factory('debounce', function($rootScope) {
   return function debounce(fn, wait, immediate) {
     return _.debounce(function() {
-      $rootScope.$apply(fn)
+      var context = this;
+      var args = arguments;
+      $rootScope.$apply(function() {
+        fn.apply(context, args);
+      });
     }, wait, immediate);
   };
 });

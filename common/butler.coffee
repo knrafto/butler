@@ -18,7 +18,7 @@ module.exports = class Butler
   on: (name, fn) ->
     handlers = @handlers[name]
     if handlers then handlers.push(fn) else @handlers[name] = [fn]
-    return @
+    @
 
   # Unregister a handler for an event.
   # @param {string} name The event name.
@@ -28,7 +28,7 @@ module.exports = class Butler
     if handlers
       i = handlers.indexOf fn
       handlers.splice i, 1 unless i is -1
-    return @
+    @
 
   # Call handlers for an event and all events below it. For example, emitting
   # 'foo.bar.baz' will call handlers for '', 'foo', 'foo.bar', and
@@ -41,7 +41,7 @@ module.exports = class Butler
       handlers = @handlers[context.prefix]
       fns.push([fn, context]) for fn in handlers if handlers?
     fn.apply context, args for [fn, context] in fns
-    return @
+    @
 
   # Register a delegate function for a method. Methods are namespaced, so if a
   # method 'foo.bar.baz' is called, the methods 'foo.bar.baz', 'foo.bar',
@@ -52,13 +52,13 @@ module.exports = class Butler
   # @param {function(this:Context, ...)} fn The delegate function.
   register: (name, fn) ->
     @delegates[name] = fn
-    return @
+    @
 
   # Unregister a delegate function for a method.
   # @param {string} name The method name.
   unregister: (name) ->
     @delegates[name] = null
-    return @
+    @
 
   # Call a method. If for example a method 'foo.bar.baz' is called, the
   # methods 'foo.bar.baz', 'foo.bar', 'foo', and '' will be searched until a
@@ -76,4 +76,4 @@ module.exports = class Butler
   reset: ->
     @handlers = {}
     @delegates = {}
-    return @
+    @

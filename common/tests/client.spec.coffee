@@ -1,4 +1,4 @@
-proxyquire = require 'proxyquire'
+rewire = require 'rewire'
 
 socket = null
 
@@ -29,7 +29,8 @@ do ->
   for state, i in ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED']
     WebSocket.prototype[state] = WebSocket[state] = i
 
-Client = proxyquire '../client', ws: WebSocket
+Client = rewire '../client'
+Client.__set__ 'WebSocket', WebSocket
 
 describe 'Client', ->
   client = null
@@ -37,30 +38,26 @@ describe 'Client', ->
 
   beforeEach ->
     client = new Client
+    client.open url
 
   describe 'open', ->
     it 'should attempt to open a new connection', ->
-      client.open url
       expect(socket.url).toEqual url
 
     it 'should emit "open" on success', (done) ->
-      client.open url
       client.on 'open', done
       socket.open()
 
     it 'should emit "error" on error before opening', (done) ->
-      client.open url
       client.on 'error', done
       socket.error()
 
     it 'should emit "error" on error after opening', (done) ->
-      client.open url
       socket.open()
       client.on 'error', done
       socket.error()
 
     it 'should emit "close" on failure before opening', (done) ->
-      client.open url
       client.on 'close', (code, reason) ->
         expect(code).toEqual 1006
         expect(reason).toEqual 'reason'
@@ -68,7 +65,6 @@ describe 'Client', ->
       socket.close 1006, 'reason'
 
     it 'should emit "close" on failure after opening', (done) ->
-      client.open url
       socket.open()
       client.on 'close', (code, reason) ->
         expect(code).toEqual 1006
@@ -77,19 +73,16 @@ describe 'Client', ->
       socket.close 1006, 'reason'
 
     it 'should close any previous connection before opening', (done) ->
-      client.open url
       client.on 'close', done
       client.open url
 
     it 'should close any previous connection after opening', (done) ->
-      client.open url
       socket.open()
       client.on 'close', done
       client.open url
 
   describe 'close', ->
     it 'should close the connection', ->
-      client.open url
       client.close()
       expect(socket.closed).toBe true
 
@@ -99,23 +92,21 @@ describe 'Client', ->
       expect(socket.closed).toBe true
 
     it 'should emit "close" before opening', (done) ->
-      client.open url
       client.on 'close', done
       client.close()
 
     it 'should emit "close" after opening', (done) ->
-      client.open url
       socket.open()
       client.on 'close', done
       client.close()
 
     it 'should do nothing when not open', ->
+      client.close()
       client.on 'close', ->
         throw new Error 'Client closed twice'
       client.close()
 
     it 'should do nothing when closing', ->
-      client.open url
       socket.open()
       client.close()
       client.on 'close', ->
@@ -124,7 +115,6 @@ describe 'Client', ->
 
   describe 'request', ->
     it 'should send numbered requests to the server', ->
-      client.open url
       socket.open()
       client.request 'foo', [1, 2], ->
       client.request 'bar', (3: 4), ->
@@ -141,7 +131,6 @@ describe 'Client', ->
       ]
 
     it 'should call the callback on success', (done) ->
-      client.open url
       socket.open()
 
       client.request 'foo', [1, 2], (err, result) ->
@@ -157,7 +146,6 @@ describe 'Client', ->
         result: 'result'
 
     it 'should call the callback on error', (done) ->
-      client.open url
       socket.open()
 
       client.request 'foo', [1, 2], (err, result) ->
@@ -175,7 +163,6 @@ describe 'Client', ->
         result: null
 
     it 'should call the callback on close', (done) ->
-      client.open url
       socket.open()
 
       client.request 'foo', [1, 2], (err, result) ->
@@ -187,7 +174,6 @@ describe 'Client', ->
       socket.close()
 
   it 'should emit events', (done) ->
-    client.open url
     socket.open()
 
     data =

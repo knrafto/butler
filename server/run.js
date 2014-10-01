@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('coffee-script/register');
 var fs = require('fs');
 
 var config_path = process.env['HOME'] + '/.config/butler/butler.conf';

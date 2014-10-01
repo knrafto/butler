@@ -4,26 +4,19 @@ WebSocket      = require 'ws'
 # Create a Client that connects to a remote server over a websocket
 module.exports = class Client extends EventEmitter
   constructor: ->
-    @readyState = WebSocket.CLOSED
     @ws = null
-
     @nextId = 0
     @requests = {}
 
-  # Open the connection on the given url and protocols, closing any previous
-  # connection. Upon a successful connection, the 'open' event will fire.
+  # Open the connection on the given url and protocols.
+  # Upon a successful connection, the 'open' event will fire.
   open: (url) ->
-    @close()
-
+    throw new Error 'Client not closed' if @ws?
     @ws = new WebSocket url
-    @readyState = WebSocket.CONNECTING
 
-    @ws.onopen = =>
-      @readyState = WebSocket.OPEN
-      @emit 'open'
+    @ws.onopen = => @emit 'open'
 
     @ws.onclose = (event) =>
-      @readyState = WebSocket.CLOSED
       @ws = null
       for own _, callback of @requests
         callback new Error 'WebSocket closed'
@@ -33,32 +26,30 @@ module.exports = class Client extends EventEmitter
     @ws.onmessage = (event) =>
       try
         message = JSON.parse event.data
-        if message.event?
-          @emit 'event', message.event, message
+        {event, id, error, result} = message
+        if event?
+          delete message.event
+          @emit 'event', event, message
         else
-          callback = @requests[message.id]
+          callback = @requests[id]
+          delete @requests[id]
           if callback?
-            error = new Error message.error.message if message.error
-            callback error, message.result
+            error = new Error error.message if error?
+            callback error, result
       catch err
         @emit 'error', err
 
-    @ws.onerror = =>
-      @emit 'error', new Error 'WebSocket error'
+    @ws.onerror = => @emit 'error', new Error 'WebSocket error'
 
     return
 
   # Close the connection, if it exists. This will cancel any pending requests
   # and fire the 'close' event. The connection will not try to reconnect.
-  close: (code, reason) =>
-    return unless @ws?
-    @readyState = WebSocket.CLOSING
-    @ws.close code, reason
-    return
+  close: (code, reason) => @ws.close code, reason if @ws?
 
   # Asynchronosly send a JSON-RPC request.
   request: (method, args, callback) ->
-    unless @readyState is WebSocket.OPEN
+    unless @ws and @ws.readyState is WebSocket.OPEN
       throw new Error 'Client not connected'
     requestId = @nextId++
     @requests[requestId] = callback
@@ -67,4 +58,3 @@ module.exports = class Client extends EventEmitter
       id: requestId
       method: method
       params: args
-    return

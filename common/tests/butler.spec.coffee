@@ -7,15 +7,16 @@ class Agency
     @calls = []
 
   spy: (name) ->
-    unless @spies[name]?
+    spy = @spies[name]
+    unless spy?
       agency = @
-      @spies[name] = (args...) ->
+      spy = @spies[name] = (args...) ->
         agency.calls.push
           spy: name
           object: @
           args: args
         return name
-    return @spies[name]
+    return spy
 
 makeCall = (spy, name, prefix, suffix, args) ->
   spy: spy

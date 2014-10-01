@@ -1,3 +1,5 @@
+proxyquire = require 'proxyquire'
+
 socket = null
 
 class WebSocket
@@ -27,11 +29,7 @@ do ->
   for state, i in ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED']
     WebSocket.prototype[state] = WebSocket[state] = i
 
-require 'ws'
-require.cache[require.resolve 'ws'].exports = WebSocket
-Client = require '../client'
-delete require.cache[require.resolve 'ws']
-delete require.cache[require.resolve '../client']
+Client = proxyquire '../client', ws: WebSocket
 
 describe 'Client', ->
   client = null

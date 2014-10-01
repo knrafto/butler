@@ -23,7 +23,7 @@ handle = (request) ->
 # @module server A service that responds to JSON-RPC requests and emits
 # events over a WebSocket.
 module.exports = (config) ->
-  config ?=
+  config ?= {}
   connections = []
   server = new Server
     host: config.hostname

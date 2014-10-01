@@ -1,38 +1,36 @@
 {EventEmitter} = require 'events'
+proxyquire     = require 'proxyquire'
 Q              = require 'q'
-ws             = require 'ws'
 
 butler         = require '../butler'
 
+messages = (socket) ->
+  for args in socket.send.calls.allArgs()
+    expect(args.length).toEqual 1
+    JSON.parse args[0]
+
 describe 'server', ->
+  ws = null
   server = null
   start = null
 
-  messages = (socket) ->
-    for args in socket.send.calls.allArgs()
-      expect(args.length).toEqual 1
-      JSON.parse args[0]
-
   beforeEach ->
     server = new EventEmitter
-    spyOn(ws, 'Server').and.returnValue server
-    delete require.cache[require.resolve '../services/server']
-
-    start = require '../services/server'
+    ws = Server: jasmine.createSpy('Server').and.returnValue server
+    start = proxyquire '../services/server', ws: ws
+    start
+      hostname: 'localhost'
+      port: 54010
 
   afterEach -> butler.reset()
 
   it 'should start a server', ->
-    start
-      hostname: 'localhost'
-      port: 54010
     expect(ws.Server).toHaveBeenCalledWith
       host: 'localhost'
       port: 54010
 
   describe 'events', ->
     it 'should be sent to all open connections', ->
-      start()
       sockets = for _ in [1..3]
         socket = new EventEmitter
         socket.send = jasmine.createSpy 'send'
@@ -51,7 +49,6 @@ describe 'server', ->
         ]
 
     it 'should not be sent to closed connections', ->
-      start()
       for _ in [1..3]
         socket = new EventEmitter
         socket.send = ->
@@ -70,7 +67,6 @@ describe 'server', ->
 
   describe 'requests', ->
     it 'should be responded to', (done) ->
-      start()
       socket = new EventEmitter
       server.emit 'connection', socket
       butler.register 'foo', (a, b) -> a + b
@@ -88,7 +84,6 @@ describe 'server', ->
         done()
 
     it 'should handle errors', (done) ->
-      start()
       socket = new EventEmitter
       server.emit 'connection', socket
       butler.register 'foo', -> throw new Error 'bam'
@@ -108,7 +103,6 @@ describe 'server', ->
         done()
 
     it 'should wait for promises', (done) ->
-      start()
       socket = new EventEmitter
       server.emit 'connection', socket
       butler.register 'foo', (a, b) -> Q(a + b)
@@ -126,7 +120,6 @@ describe 'server', ->
         done()
 
     it 'should wait for promises with errors', (done) ->
-      start()
       socket = new EventEmitter
       server.emit 'connection', socket
       butler.register 'foo', (a, b) -> Q.reject new Error 'bam'

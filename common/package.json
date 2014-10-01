@@ -19,7 +19,8 @@
   },
   "devDependencies": {
     "coffee-script": "^1.8.0",
-    "jasmine-node": "^2.0.0-beta4"
+    "jasmine-node": "^2.0.0-beta4",
+    "proxyquire": "^1.0.1"
   },
   "license": "MIT"
 }

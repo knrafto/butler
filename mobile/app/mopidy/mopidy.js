@@ -203,7 +203,7 @@ angular.module('mopidy', ['butler'])
     replace: true,
     scope: true,
     template:
-      '<div class="range seek-slider">' +
+      '<div class="range">' +
       '  <i>{{slider.position | time}}</i>' +
       '  <input integer type="range"' +
       '    min="0" max="{{slider.length}}"' +
@@ -250,7 +250,7 @@ angular.module('mopidy', ['butler'])
       album: '=',
       size: '@'
     },
-    template: '<img class="album-image"></img>',
+    template: '<img></img>',
     controller: function($scope, $q, butler) {
       this.getAlbumImage = function() {
         var album = $scope.album;
@@ -284,7 +284,7 @@ angular.module('mopidy', ['butler'])
       track: '='
     },
     template:
-      '<div class="track-info"' +
+      '<div>' +
       '  <h2>{{track.name}}</h2>' +
       '  <p>{{track.artists | pluck:"name" | join:", "}}</p>' +
       '</div>'

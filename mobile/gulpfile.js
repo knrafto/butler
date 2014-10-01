@@ -4,6 +4,7 @@ var browserify = require('browserify');
 var buffer = require('vinyl-buffer');
 var clean = require('gulp-clean');
 var coffee = require('gulp-coffee');
+var coffeelint = require('gulp-coffeelint');
 var concat = require('gulp-concat');
 var sass = require('gulp-sass');
 var source = require('vinyl-source-stream');
@@ -83,7 +84,13 @@ gulp.task('sass', function() {
 gulp.task('fonts', function() {
   gulp.src(paths.fonts)
   .pipe(gulp.dest('dist/fonts'));
-})
+});
+
+gulp.task('lint', function () {
+    gulp.src(paths.bundle)
+    .pipe(coffeelint())
+    .pipe(coffeelint.reporter())
+});
 
 var buildTasks = [
   'lib', 'common', 'bundle', 'index', 'templates', 'css', 'sass', 'fonts'

@@ -129,7 +129,7 @@ describe 'Client', ->
       client.open url
       socket.open()
       client.request 'foo', [1, 2], ->
-      client.request 'bar', 3: 4, ->
+      client.request 'bar', (3: 4), ->
       expect(socket.sent).toEqual [
         jsonrpc: '2.0'
         id: 0
@@ -151,7 +151,7 @@ describe 'Client', ->
         expect(result).toBe 'result'
         done()
 
-      client.request 'bar', 3: 4, ->
+      client.request 'bar', (3: 4), ->
 
       socket.receive
         id: 0

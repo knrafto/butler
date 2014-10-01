@@ -1,6 +1,5 @@
 {EventEmitter} = require 'events'
-
-WebSocket = require 'ws'
+WebSocket      = require 'ws'
 
 # Create a Client that connects to a remote server over a websocket
 module.exports = class Client extends EventEmitter
@@ -38,8 +37,9 @@ module.exports = class Client extends EventEmitter
           @emit 'event', message.event, message
         else
           callback = @requests[message.id]
-          error = message.error and new Error message.error.message
-          callback error, message.result if callback
+          if callback?
+            error = new Error message.error.message if message.error
+            callback error, message.result
       catch err
         @emit 'error', err
 

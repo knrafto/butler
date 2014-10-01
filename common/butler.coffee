@@ -16,18 +16,18 @@ module.exports = class Butler
   # @param {string} name The event name.
   # @param {function(this:Context, ...)} fn The handler function.
   on: (name, fn) ->
-    handlers = @handlers[name];
-    if handlers then handlers.push(fn) else @handlers[name] = [fn];
+    handlers = @handlers[name]
+    if handlers then handlers.push(fn) else @handlers[name] = [fn]
     return @
 
   # Unregister a handler for an event.
   # @param {string} name The event name.
   # @param {function(this:Context, ...)} fn The handler function.
   off: (name, fn) ->
-    handlers = @handlers[name];
+    handlers = @handlers[name]
     if handlers
-      i = handlers.indexOf fn;
-      handlers.splice i, 1 if i > -1
+      i = handlers.indexOf fn
+      handlers.splice i, 1 unless i is -1
     return @
 
   # Call handlers for an event and all events below it. For example, emitting
@@ -39,11 +39,8 @@ module.exports = class Butler
     fns = []
     for context in walk name
       handlers = @handlers[context.prefix]
-      if handlers?
-        for fn in handlers
-          fns.push([fn, context])
-    for [fn, context] in fns
-      fn.apply context, args
+      fns.push([fn, context]) for fn in handlers if handlers?
+    fn.apply context, args for [fn, context] in fns
     return @
 
   # Register a delegate function for a method. Methods are namespaced, so if a

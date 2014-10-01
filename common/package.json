@@ -18,6 +18,7 @@
     "ws": "^0.4.32"
   },
   "devDependencies": {
+    "coffee-script": "^1.8.0",
     "jasmine-node": "^2.0.0-beta4"
   },
   "license": "MIT"

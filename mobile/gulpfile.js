@@ -1,10 +1,13 @@
 var gulp = require('gulp');
+var gutil = require('gulp-util');
 var browserify = require('browserify');
 var buffer = require('vinyl-buffer');
 var clean = require('gulp-clean');
+var coffee = require('gulp-coffee');
 var concat = require('gulp-concat');
 var sass = require('gulp-sass');
 var source = require('vinyl-source-stream');
+var sourcemaps = require('gulp-sourcemaps');
 var templateCache = require('gulp-angular-templatecache');
 
 var paths = {
@@ -13,7 +16,7 @@ var paths = {
     'components/underscore/underscore.js'
   ],
   common: '../common',
-  bundle: 'app/**/*.js',
+  bundle: 'app/**/*.coffee',
   index: 'app/index.html',
   templates: [
     'app/**/*.html',
@@ -48,6 +51,8 @@ gulp.task('common', function() {
 
 gulp.task('bundle', function() {
   gulp.src(paths.bundle)
+  .pipe(coffee({ bare: true })).on('error', gutil.log)
+  .pipe(sourcemaps.write('./maps'))
   .pipe(concat('bundle.js'))
   .pipe(gulp.dest('dist/js'));
 });

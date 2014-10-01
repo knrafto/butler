@@ -4,7 +4,7 @@
   "description": "Common infrastructure for the butler system",
   "author": "Kyle Raftogianis <knrafto@gmail.com>",
   "scripts": {
-    "test": "jasmine-node tests"
+    "test": "jasmine-node --coffee tests"
   },
   "main": "index.js",
   "repository": {
@@ -15,7 +15,6 @@
     "url": "https://github.com/knrafto/butler/issues"
   },
   "dependencies": {
-    "underscore": "^1.7.0",
     "ws": "^0.4.32"
   },
   "devDependencies": {

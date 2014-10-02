@@ -36,11 +36,15 @@ module.exports = (config) ->
     connections.push socket
     socket.on 'close', -> remove connections, socket
     socket.on 'message', (request) ->
-      (handle request).done (data) -> socket.send data
+      butler.emit 'log.debug', 'request', request
+      (handle request).done (response) ->
+        butler.emit 'log.debug', 'response', response
+        socket.send response
 
   butler.on '', (args...) ->
     return if @name.match /^log\./ # don't send log events
     event = JSON.stringify
       event: @name
       params: args
+    butler.emit 'log.debug', 'event', event
     socket.send event for socket in connections

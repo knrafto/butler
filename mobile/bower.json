@@ -6,7 +6,7 @@
   "homepage": "https://github.com/knrafto/butler",
   "main": "app/app.js",
   "dependencies": {
-    "ionic": "~1.0.0-beta.14",
+    "ionic": "1.0.0-beta.13",
     "underscore": "~1.7.0"
   },
   "license": "MIT"

@@ -1,16 +1,22 @@
-API    = require '../api'
-butler = require '../butler'
+{LastFmNode} = require 'lastfm'
+LRU          = require 'lru-cache'
+Q            = require 'q'
+
+butler       = require '../butler'
+memoize      = require '../async-memoize'
 
 module.exports = (config) ->
-  api = new API
-    url: 'http://ws.audioscrobbler.com/2.0/'
-    params:
-      api_key: config.key
-      format: 'json'
-    max: config.cacheSize or 1000
+  lastfm = new LastFmNode api_key: config.key
+  cache = new LRU max: config.cacheSize
+
+  request = memoize cache, (method, options) ->
+    "#{method}:#{JSON.stringify(options)}"
+  , (method, options) ->
+    deferred = Q.defer()
+    response = lastfm.request method, options
+    response.on 'success', (data) -> deferred.resolve data
+    response.on 'error', (err) -> deferred.reject err
+    deferred.promise
 
   butler.register 'lastfm.albumInfo', (album, artist) ->
-    api.get
-      method: 'album.getInfo'
-      album: album
-      artist: artist
+    request 'album.getInfo', album: album, artist: artist

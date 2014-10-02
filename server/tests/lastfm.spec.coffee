@@ -1,28 +1,33 @@
-proxyquire = require 'proxyquire'
+nock   = require 'nock'
 
-butler     = require '../butler'
-request    = require './mock-request'
-api        = proxyquire '../api', request: request
-start      = proxyquire '../services/lastfm', api: api
+butler = require '../butler'
+start  = require '../services/lastfm'
 
 describe 'lastfm', ->
   config = key: 'xxx'
+  scope = null
 
-  beforeEach -> start config
+  beforeEach ->
+    start config
+    scope = nock('http://ws.audioscrobbler.com:80')
 
   afterEach ->
-    request.flush()
+    scope.done()
+    nock.restore()
     butler.reset()
 
   describe 'albumInfo', ->
     it 'should fetch album info', (done) ->
-      response = baz: 42
-      request.expect 'http://ws.audioscrobbler.com/2.0/\
-        ?method=album.getInfo&album=foo&artist=bar&api_key=xxx&format=json'
-      .respond response
+      response = album: 42
+      scope.get '/2.0?album=foo&artist=bar\
+          &method=album.getInfo&api_key=xxx&format=json'
+        .reply 200, response
 
       butler.call 'lastfm.albumInfo', 'foo', 'bar'
-      .then (data) ->
-        expect(data).toEqual response
-        done()
-
+        .then (data) ->
+          (expect data).toEqual response
+        .then ->
+          butler.call 'lastfm.albumInfo', 'foo', 'bar'
+        .then (data) ->
+          (expect data).toEqual response
+          done()

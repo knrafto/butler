@@ -1,14 +1,15 @@
-gulp = require 'gulp'
-gutil = require 'gulp-util'
-browserify = require 'browserify'
-buffer = require 'vinyl-buffer'
-clean = require 'gulp-clean'
-coffee = require 'gulp-coffee'
-coffeelint = require 'gulp-coffeelint'
-concat = require 'gulp-concat'
-sass = require 'gulp-sass'
-source = require 'vinyl-source-stream'
-sourcemaps = require 'gulp-sourcemaps'
+gulp          = require 'gulp'
+gutil         = require 'gulp-util'
+browserify    = require 'browserify'
+buffer        = require 'vinyl-buffer'
+clean         = require 'gulp-clean'
+coffee        = require 'gulp-coffee'
+coffeeify     = require 'coffeeify'
+coffeelint    = require 'gulp-coffeelint'
+concat        = require 'gulp-concat'
+sass          = require 'gulp-sass'
+source        = require 'vinyl-source-stream'
+sourcemaps    = require 'gulp-sourcemaps'
 templateCache = require 'gulp-angular-templatecache'
 
 paths =
@@ -30,57 +31,60 @@ paths =
 gulp.task 'clean', ->
   gulp.src 'dist',
     read: false
-  .pipe clean()
+    .pipe clean()
 
 gulp.task 'lib', ->
   gulp.src paths.lib
-  .pipe concat 'lib.js'
-  .pipe gulp.dest 'dist/js'
+    .pipe concat 'lib.js'
+    .pipe gulp.dest 'dist/js'
 
 gulp.task 'common', ->
   browserify
-    standalone: 'common'
-    entries: paths.common
-  .bundle()
-  .pipe source 'common.js'
-  .pipe buffer()
-  .pipe gulp.dest 'dist/js'
+      standalone: 'common'
+      extensions: ['.coffee']
+      entries: paths.common
+    .transform coffeeify
+    .bundle()
+    .pipe source 'common.js'
+    .pipe buffer()
+    .pipe gulp.dest 'dist/js'
 
 gulp.task 'bundle', ->
   gulp.src paths.bundle
-  .pipe coffee(bare: true)
-  .on 'error', gutil.log
-  .pipe sourcemaps.write './maps'
-  .pipe concat 'bundle.js'
-  .pipe gulp.dest 'dist/js'
+    .pipe sourcemaps.init()
+      .pipe coffee bare: true
+        .on 'error', gutil.log
+      .pipe concat 'bundle.js'
+    .pipe sourcemaps.write()
+    .pipe gulp.dest 'dist/js'
 
 gulp.task 'index', ->
   gulp.src paths.index
-  .pipe gulp.dest 'dist/'
+    .pipe gulp.dest 'dist/'
 
 gulp.task 'templates', ->
   gulp.src paths.templates
-  .pipe templateCache(standalone: true)
-  .pipe gulp.dest 'dist/js'
+    .pipe templateCache(standalone: true)
+    .pipe gulp.dest 'dist/js'
 
 gulp.task 'css', ->
   gulp.src paths.css
-  .pipe gulp.dest 'dist/css'
+    .pipe gulp.dest 'dist/css'
 
 gulp.task 'sass', ->
   gulp.src paths.sass
-  .pipe sass()
-  .pipe concat 'bundle.css'
-  .pipe gulp.dest 'dist/css'
+    .pipe sass()
+    .pipe concat 'bundle.css'
+    .pipe gulp.dest 'dist/css'
 
 gulp.task 'fonts', ->
   gulp.src paths.fonts
-  .pipe gulp.dest 'dist/fonts'
+    .pipe gulp.dest 'dist/fonts'
 
 gulp.task 'lint', ->
   gulp.src paths.bundle
-  .pipe coffeelint()
-  .pipe coffeelint.reporter()
+    .pipe coffeelint()
+    .pipe coffeelint.reporter()
 
 buildTasks = [
   'lib'

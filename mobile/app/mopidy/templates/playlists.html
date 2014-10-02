@@ -1,0 +1,11 @@
+<ion-view title="Playlists">
+  <ion-content>
+    <div class="list">
+      <a class="item" ng-repeat="playlist in mopidy.playlists"
+        ui-sref="^.playlist({ uri: playlist.uri })">
+        {{playlist.name}}
+      </a>
+    </div>
+  </ion-content>
+  <mopidy-playback-bar></mopidy-playback-bar>
+</ion-view>

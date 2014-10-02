@@ -10,24 +10,24 @@ angular.module('mopidy', ['butler'])
 
   .state 'app.mopidy.home',
     url: '/home'
-    templateUrl: 'mopidy/home.html'
+    templateUrl: 'mopidy/templates/home.html'
 
   .state 'app.mopidy.playback',
     url: '/playback'
-    templateUrl: 'mopidy/playback.html'
+    templateUrl: 'mopidy/templates/playback.html'
     controller: 'PlaybackCtrl'
 
   .state 'app.mopidy.search',
     url: '/search'
-    templateUrl: 'mopidy/search.html'
+    templateUrl: 'mopidy/templates/search.html'
 
   .state 'app.mopidy.playlists',
     url: '/playlists'
-    templateUrl: 'mopidy/playlists.html'
+    templateUrl: 'mopidy/templates/playlists.html'
 
   .state 'app.mopidy.playlist',
     url: '/playlist/:uri'
-    templateUrl: 'mopidy/playlist.html'
+    templateUrl: 'mopidy/templates/playlist.html'
     controller: ['$scope', '$stateParams', 'mopidy',
       ($scope,  $stateParams,  mopidy) ->
         $scope.playlist = mopidy.getPlaylist $stateParams.uri
@@ -282,7 +282,7 @@ angular.module('mopidy', ['butler'])
   restrict: 'E'
   replace: true
   scope: false
-  templateUrl: 'mopidy/playback-bar.html'
+  templateUrl: 'mopidy/templates/playback-bar.html'
   controller: 'PlaybackCtrl'
 
 .directive 'integer', ->

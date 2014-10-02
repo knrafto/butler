@@ -1,5 +1,8 @@
 <div class="list">
-  <div class="item item-thumbnail-left" ng-repeat="track in tracks"
+  <div class="item item-thumbnail-left item-tracklist"
+    collection-repeat="track in tracks track by track.uri"
+    collection-item-width="'100%'"
+    collection-item-height="98"
     ng-click="trackAction(track)">
     <mopidy-album-image album="track.album" size="medium"></mopidy-album-image>
     <mopidy-track-info track="track"></mopidy-track-info>

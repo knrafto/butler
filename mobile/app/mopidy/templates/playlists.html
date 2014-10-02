@@ -1,7 +1,10 @@
 <ion-view title="Playlists">
-  <ion-content>
+  <ion-content class="has-header">
     <div class="list">
-      <a class="item" style="width: 100%" ng-repeat="playlist in playlists"
+      <a class="item item-playlist"
+        collection-repeat="playlist in playlists track by playlist.uri"
+        collection-item-width="'100%'"
+        collection-item-height="48"
         ui-sref="^.playlist({ uri: playlist.uri })">
         {{playlist.name}}
       </a>

@@ -67,8 +67,10 @@ angular.module('mopidy', ['butler'])
       playback.timePosition = position
       updateTimer()
 
+    raise = (err) -> throw err
+
     fetch = (method, setter) ->
-      butler.call(method).then setter
+      butler.call(method).then setter, raise
 
     sync = ->
       fetch 'mopidy.playback.get_state', setState
@@ -100,7 +102,9 @@ angular.module('mopidy', ['butler'])
       setTimePosition data.time_position
 
     save = (method, args...) ->
-      butler.call(method, args...).then undefined, sync
+      butler.call(method, args...).then null, (err) ->
+        sync
+        raise err
 
     playback.play = ->
       playback.state = 'playing'

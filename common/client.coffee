@@ -2,22 +2,56 @@
 WebSocket      = require 'ws'
 
 # Create a Client that connects to a remote server over a websocket.
+# To query a client's state, use the readyState property. It is one
+# of:
+# * 'connecting'
+# * 'open'
+# * 'closed'
+#
+# Instances also emit the following events:
+# * 'open'
+# * 'close'
+# * 'error'
 module.exports = class Client extends EventEmitter
-  constructor: (url) ->
-    @ws = new WebSocket url
+  constructor: (options = {}) ->
+    {@reconnectInterval, @reconnectIntervalMax, @timeout} = options
+    @reconnectInterval ?= 1000
+    @reconnectIntervalMax ?= 8000
+    @timeout ?= 2000
+
+    @readyState = 'closed'
+    @ws = null
+    @reconnectWait = @reconnectInterval
+    @reconnectTimeout = null # (possibly) active if 'closed'
+
     @nextId = 0
     @requests = {}
 
-    @ws.onopen = => @emit 'open'
+  # Attempt to open a new connection, closing any previous connection.
+  # If the connection attempt fails, the Client will try to reconnect.
+  open: (url) ->
+    @destroy()
+
+    @url = url if url?
+    throw new Error 'No URL' unless @url?
+
+    @readyState = 'connecting'
+    @ws = new WebSocket url
+    clearTimeout @reconnectTimeout
+
+    timeoutTimeout = setTimeout (=> @ws.close()), @timeout
+
+    @ws.onopen = =>
+      clearTimeout timeoutTimeout
+      @readyState = 'open'
+      @reconnectWait = @reconnectInterval
+      clearTimeout @reconnectTimeout
+      @emit 'open'
 
     @ws.onclose = (event) =>
-      try
-        for own _, callback of @requests
-          callback? new Error 'WebSocket closed'
-        @requests = {}
-      catch err
-        @emit 'error', err
-      @emit 'close', event.code, event.reason
+      clearTimeout timeoutTimeout
+      @readyState = 'closed'
+      @close event.code, event.reason
 
     @ws.onmessage = (event) =>
       try
@@ -36,13 +70,32 @@ module.exports = class Client extends EventEmitter
 
     @ws.onerror = => @emit 'error', new Error 'WebSocket error'
 
-  # Close the connection, if it exists. This will cancel any pending requests
-  # and fire the 'close' event.
-  close: (code, reason) => @ws.close code, reason
+  # Close the connection. The Client will try to reconnect.
+  close: (code, reason) ->
+    @destroy code, reason
+    @reconnectWait = Math.max @reconnectIntervalMax, 2 * @reconnectWait
+    @reconnectTimeout = setTimeout (=> @open()), @reconnectWait
+
+  # Close the connection. The Client will not try to reconnect.
+  destroy: (code, reason) ->
+    unless @readyState is 'closed'
+      @ws.close code, reason
+      @emit 'close', code, reason
+
+    @ws = null
+    clearTimeout @reconnectTimeout
+
+    try
+      requests = @requests
+      @requests = {}
+      for own _, callback of requests
+        callback? new Error 'WebSocket closed'
+    catch err
+      @emit 'error', err
 
   # Asynchronosly send a JSON-RPC request.
   request: (method, args, callback) ->
-    unless @ws.readyState is @ws.OPEN
+    unless @readyState is 'open'
       throw new Error 'Client not connected'
     requestId = @nextId++
     @requests[requestId] = callback

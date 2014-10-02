@@ -8,7 +8,7 @@ class WebSocket
   CLOSING: 2
   CLOSED: 3
 
-  constructor: (@url, @protocols)  ->
+  constructor: (@url)  ->
     @readyState = @CONNECTING
     @sent = []
     WebSocket.sockets[@url] = @
@@ -33,71 +33,96 @@ Client = rewire '../client'
 Client.__set__ 'WebSocket', WebSocket
 
 describe 'Client', ->
-  client = null
-  socket = null
-  url = 'ws://example.com'
 
   beforeEach ->
-    client = new Client url
-    socket = WebSocket.sockets[url]
+    @client = new Client
+      reconnectInterval: 1000
+      reconnectIntervalMax: 4000
+      timeout: 1000
+
+    @connect = =>
+      url = 'ws://example.com'
+      @client.open url
+      WebSocket.sockets[url]
+
+    @events = []
+    @client.on 'open', => @events.push 'open'
+    @client.on 'close', => @events.push 'close'
+    @client.on 'error', => @events.push 'error'
+    @client.on 'event', (name, data) => @events.push name: name, data: data
+
+  afterEach -> @client.destroy()
+
+  it 'should set default values', ->
+    @client = new Client
+    (expect @client.reconnectInterval).toEqual 1000
+    (expect @client.reconnectIntervalMax).toEqual 8000
+    (expect @client.timeout).toEqual 2000
+
+  it 'should initially be closed', ->
+    (expect @client.readyState).toEqual 'closed'
+    (expect @events).toEqual []
 
   describe 'open', ->
-    it 'should attempt to open a new connection', ->
-      (expect socket.url).toEqual url
+    it 'should open a new connection', ->
+      socket = @connect()
+      (expect @client.readyState).toEqual 'connecting'
 
-    it 'should emit "open" on success', (done) ->
-      client.on 'open', done
+      socket.open()
+      (expect @client.readyState).toEqual 'open'
+      (expect @client.url).toEqual socket.url
+      (expect @events).toEqual ['open']
+
+    it 'should close an open connection', ->
+      socket = @connect()
       socket.open()
 
-    it 'should emit "error" on error before opening', (done) ->
-      client.on 'error', done
-      socket.error()
+      @client.open()
+      (expect socket.readyState).toEqual socket.CLOSED
+      (expect @events).toEqual ['open', 'close']
 
-    it 'should emit "error" on error after opening', (done) ->
-      socket.open()
-      client.on 'error', done
-      socket.error()
+    it 'should attempt to reconnect on failure'
 
-    it 'should emit "close" on closure before opening', (done) ->
-      client.on 'close', (code, reason) ->
-        (expect code).toEqual 1006
-        (expect reason).toEqual 'reason'
-        done()
-      socket.close 1006, 'reason'
+    it 'should timeout'
 
-    it 'should emit "close" on closure after opening', (done) ->
-      socket.open()
-      client.on 'close', (code, reason) ->
-        (expect code).toEqual 1006
-        (expect reason).toEqual 'reason'
-        done()
-      socket.close 1006, 'reason'
+    it 'should attempt to reconnect on timeout'
 
   describe 'close', ->
-    it 'should close the connection', ->
-      client.close()
-      (expect socket.readyState).toEqual socket.CLOSED
-
-    it 'should emit "close" when closed before opening', (done) ->
-      client.on 'close', done
-      client.close()
-
-    it 'should emit "close" when closed after opening', (done) ->
+    it 'should close an open connection', ->
+      socket = @connect()
       socket.open()
-      client.on 'close', done
-      client.close()
+      @client.close()
+      (expect @client.readyState).toEqual 'closed'
+      (expect @events).toEqual ['open', 'close']
 
-    it 'should do nothing when not open', ->
-      client.close()
-      client.on 'close', ->
-        throw new Error 'Client closed twice'
-      client.close()
+    it 'should do nothing if closed', ->
+      @client.close()
+      (expect @client.readyState).toEqual 'closed'
+      (expect @events).toEqual []
+
+    it 'should attempt to reconnect'
+
+  describe 'destroy', ->
+    it 'should close an open connection', ->
+      socket = @connect()
+      socket.open()
+      @client.destroy()
+      (expect @client.readyState).toEqual 'closed'
+      (expect @events).toEqual ['open', 'close']
+
+    it 'should do nothing if closed', ->
+      @client.destroy()
+      (expect @client.readyState).toEqual 'closed'
+      (expect @events).toEqual []
+
+    it 'should not attempt to reconnect'
 
   describe 'request', ->
-    it 'should send numbered requests to the server', ->
+    it 'should send requests', ->
+      socket = @connect()
       socket.open()
-      client.request 'foo', [1, 2], ->
-      client.request 'bar', [3, 4], ->
+      @client.request 'foo', [1, 2], ->
+      @client.request 'bar', [3, 4], ->
       (expect socket.sent).toEqual [
         jsonrpc: '2.0'
         id: 0
@@ -110,14 +135,21 @@ describe 'Client', ->
         params: [3, 4]
       ]
 
-    it 'should call the callback on success', (done) ->
+    it 'should throw when not open', ->
+      socket = @connect()
+      expect -> @client.request 'foo', [1, 2], ->
+        .toThrow()
+
+    it 'should respond with success', ->
+      socket = @connect()
       socket.open()
 
-      client.request 'foo', [1, 2], (err, result) ->
-        (expect err).toBeFalsy()
-        (expect result).toEqual 'result'
-        done()
-      client.request 'bar', [3, 4], ->
+      responses = []
+      @client.request 'foo', [1, 2], (err, result) ->
+        responses.push
+          error: err
+          result: result
+      @client.request 'bar', [3, 4], ->
 
       socket.receive
         id: 1
@@ -128,14 +160,21 @@ describe 'Client', ->
         error: null
         result: 'result'
 
-    it 'should call the callback on error', (done) ->
+      (expect responses).toEqual [
+        error: undefined
+        result: 'result'
+      ]
+
+    it 'should respond with error', ->
+      socket = @connect()
       socket.open()
 
-      client.request 'foo', [1, 2], (err, result) ->
-        expect(err).toEqual new Error 'oops'
-        expect(result).toBe null
-        done()
-      client.request 'bar', [3, 4], ->
+      responses = []
+      @client.request 'foo', [1, 2], (err, result) ->
+        responses.push
+          error: err
+          result: result
+      @client.request 'bar', [3, 4], ->
 
       socket.receive
         id: 0
@@ -144,19 +183,56 @@ describe 'Client', ->
           message: 'oops'
         result: null
 
-    it 'should call the callback on close', (done) ->
+      (expect responses).toEqual [
+        error: new Error 'oops'
+        result: null
+      ]
+
+    it 'should respond with error when closed', ->
+      socket = @connect()
       socket.open()
-      client.request 'foo', [1, 2], (err, result) ->
-        expect(err).toBeTruthy()
-        done()
-      client.request 'bar', [3, 4], ->
+
+      responses = []
+      @client.request 'foo', [1, 2], (err, result) ->
+        responses.push
+          error: err
+          result: result
       socket.close()
 
-  describe 'event', ->
-    it 'should emit events', (done) ->
+      (expect responses).toEqual [
+        error: new Error 'WebSocket closed'
+        result: undefined
+      ]
+
+    it 'should respond with error when destroyed', ->
+      socket = @connect()
       socket.open()
-      client.on 'event', (name, data) ->
-        (expect name).toEqual 'foo'
-        (expect data).toEqual params: [1, 2]
-        done()
-      socket.receive event: 'foo', params: [1, 2]
+
+      responses = []
+      @client.request 'foo', [1, 2], (err, result) ->
+        responses.push
+          error: err
+          result: result
+      @client.destroy()
+
+      (expect responses).toEqual [
+        error: new Error 'WebSocket closed'
+        result: undefined
+      ]
+
+  it 'should emit events', ->
+    socket = @connect()
+    socket.open()
+    socket.receive event: 'foo', params: [1, 2]
+    socket.receive event: 'bar', bar: 42, baz: 27
+    (expect @events).toEqual [
+      'open'
+    ,
+      name: 'foo'
+      data: params: [1, 2]
+    ,
+      name: 'bar'
+      data:
+        bar: 42
+        baz: 27
+    ]

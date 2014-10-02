@@ -3,24 +3,25 @@ rewire = require 'rewire'
 class WebSocket
   @sockets: {}
 
-  @CONNECTING: 0
-  @OPEN: 1
-  @CLOSING: 2
-  @CLOSED: 3
+  CONNECTING: 0
+  OPEN: 1
+  CLOSING: 2
+  CLOSED: 3
 
   constructor: (@url, @protocols)  ->
-    @readyState = WebSocket.CONNECTING
+    @readyState = @CONNECTING
     @sent = []
     WebSocket.sockets[@url] = @
 
   open: ->
-    @readyState = WebSocket.OPEN
+    @readyState = @OPEN
     @onopen?()
 
   close: (code, reason) ->
-    @readyState = WebSocket.CLOSED
-    delete WebSocket.sockets[@url]
-    @onclose? code: code, reason: reason
+    unless @readyState is @CLOSED
+      @readyState = @CLOSED
+      delete WebSocket.sockets[@url]
+      @onclose? code: code, reason: reason
 
   send: (data) -> @sent.push JSON.parse data
 
@@ -37,8 +38,7 @@ describe 'Client', ->
   url = 'ws://example.com'
 
   beforeEach ->
-    client = new Client
-    client.open url
+    client = new Client url
     socket = WebSocket.sockets[url]
 
   describe 'open', ->
@@ -73,24 +73,10 @@ describe 'Client', ->
         done()
       socket.close 1006, 'reason'
 
-    it 'should throw if a connection is opening', ->
-      expect(-> client.open url).toThrow()
-
-    it 'should throw if a connection is already open', ->
-      socket.open()
-      expect(-> client.open url).toThrow()
-
-    it 'should reopen the connection if closed', (done) ->
-      otherUrl = 'ws://foo.org'
-      client.close()
-      client.open otherUrl
-      client.on 'open', done
-      WebSocket.sockets[otherUrl].open()
-
   describe 'close', ->
     it 'should close the connection', ->
       client.close()
-      (expect socket.readyState).toEqual WebSocket.CLOSED
+      (expect socket.readyState).toEqual socket.CLOSED
 
     it 'should emit "close" when closed before opening', (done) ->
       client.on 'close', done

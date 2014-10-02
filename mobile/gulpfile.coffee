@@ -29,14 +29,14 @@ paths =
   fonts: 'components/ionic/release/fonts/*'
 
 gulp.task 'clean', ->
-  gulp.src 'dist',
+  gulp.src 'www',
     read: false
     .pipe clean()
 
 gulp.task 'lib', ->
   gulp.src paths.lib
     .pipe concat 'lib.js'
-    .pipe gulp.dest 'dist/js'
+    .pipe gulp.dest 'www/js'
 
 gulp.task 'common', ->
   browserify
@@ -47,7 +47,7 @@ gulp.task 'common', ->
     .bundle()
     .pipe source 'common.js'
     .pipe buffer()
-    .pipe gulp.dest 'dist/js'
+    .pipe gulp.dest 'www/js'
 
 gulp.task 'bundle', ->
   gulp.src paths.bundle
@@ -56,30 +56,30 @@ gulp.task 'bundle', ->
         .on 'error', gutil.log
       .pipe concat 'bundle.js'
     .pipe sourcemaps.write()
-    .pipe gulp.dest 'dist/js'
+    .pipe gulp.dest 'www/js'
 
 gulp.task 'index', ->
   gulp.src paths.index
-    .pipe gulp.dest 'dist/'
+    .pipe gulp.dest 'www/'
 
 gulp.task 'templates', ->
   gulp.src paths.templates
     .pipe templateCache(standalone: true)
-    .pipe gulp.dest 'dist/js'
+    .pipe gulp.dest 'www/js'
 
 gulp.task 'css', ->
   gulp.src paths.css
-    .pipe gulp.dest 'dist/css'
+    .pipe gulp.dest 'www/css'
 
 gulp.task 'sass', ->
   gulp.src paths.sass
     .pipe sass()
     .pipe concat 'bundle.css'
-    .pipe gulp.dest 'dist/css'
+    .pipe gulp.dest 'www/css'
 
 gulp.task 'fonts', ->
   gulp.src paths.fonts
-    .pipe gulp.dest 'dist/fonts'
+    .pipe gulp.dest 'www/fonts'
 
 gulp.task 'lint', ->
   gulp.src paths.bundle
@@ -108,10 +108,10 @@ gulp.task 'watch', buildTasks, ->
   serverPort = 5000
   server = express()
   server.use livereload(port: livereloadPort)
-  server.use express.static './dist'
+  server.use express.static './www'
   server.listen serverPort
   refresh.listen livereloadPort
-  gulp.watch('dist/**').on 'change', refresh.changed
+  gulp.watch('www/**').on 'change', refresh.changed
 
   # TODO: watchify
   for task in buildTasks

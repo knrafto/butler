@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.knrafto.butler" version="0.1.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Butler</name>
+    <description>
+        Butler Mobile Client
+    </description>
+    <author email="knrafto@gmail.com" href="http://github.com/knrafto">
+        Kyle Raftogianis
+    </author>
+    <content src="index.html" />
+    <access origin="*" />
+</widget>

@@ -1,20 +1,20 @@
-dist
+www
 components
 node_modules
 npm-debug.log
 
 # Android
-platforms/android/bin
-platforms/android/gen
-platforms/android/assets
-platforms/android/.staging
-platforms/android/CordovaLib
+platforms/android/assets/www
+platforms/android/bin/
+platforms/android/gen/
 platforms/android/res/xml/config.xml
 
 # iOS
-platforms/ios/Beacon/config.xml
-platforms/ios/build
-platforms/ios/CordovaLib/build
+platforms/ios/build/
+platforms/ios/CordovaLib/build/
 platforms/ios/www
+platforms/ios/MyPace/config.xml
 platforms/ios/.staging
+
+# Emulator logs
 platforms/ios/cordova/console.log

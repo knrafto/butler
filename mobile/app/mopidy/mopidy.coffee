@@ -133,10 +133,12 @@ angular.module('mopidy', ['butler'])
   restrict: 'E'
   replace: true
   scope: true
-  template: '
+  template: '''
     <button class="button button-icon icon"
       ng-class="playing ? \'ion-ios7-pause\' : \'ion-ios7-play\'"
-      ng-click="toggle()"></button>'
+      ng-click="toggle()">
+    </button>
+    '''
   controller: ['$scope', ($scope) ->
     $scope.$watch ->
       $scope.playback.state is 'playing'
@@ -152,22 +154,26 @@ angular.module('mopidy', ['butler'])
 .directive 'mopidyNextButton', ->
   restrict: 'E'
   replace: true
-  template: '
+  template: '''
     <button class="button button-icon icon ion-ios7-skipforward"
-      ng-click="playback.next()"></button>'
+      ng-click="playback.next()">
+    </button>
+    '''
 
 .directive 'mopidyPreviousButton', ->
   restrict: 'E'
   replace: true
-  template: '
+  template: '''
     <button class="button button-icon icon ion-ios7-skipbackward"
-      ng-click="playback.previous()"></button>'
+      ng-click="playback.previous()">
+    </button>
+    '''
 
 .directive 'mopidySeekSlider', ->
   restrict: 'E'
   replace: true
   scope: true
-  template: '
+  template: '''
     <div class="range">
       <i>{{slider.position | time}}</i>
       <input integer type="range"
@@ -176,7 +182,8 @@ angular.module('mopidy', ['butler'])
         ng-mousedown="startSeek()"
         ng-mouseup="endSeek()">
       <i>{{slider.length | time}}</i>
-    </div>'
+    </div>
+    '''
   controller: ['$scope', ($scope) ->
     seeking = false
 
@@ -230,11 +237,12 @@ angular.module('mopidy', ['butler'])
   replace: true
   scope:
     track: '='
-  template: '
+  template: '''
     <div>
       <h2>{{track.name}}</h2>
       <p>{{track.artists | pluck:"name" | join:", "}}</p>
-    </div>'
+    </div>
+    '''
 
 # .directive('mopidyTrackList', function() {
 #   return {

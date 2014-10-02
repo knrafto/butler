@@ -5,16 +5,14 @@ angular.module('butler', ['ui.router', 'templates'])
 
 .factory 'butler', ['$window', '$rootScope', '$timeout', '$q', 'SERVER_URL',
   ($window,  $rootScope,  $timeout,  $q,  SERVER_URL) ->
-    butler = new $window.common.Butler()
-    client = new $window.common.Client()
+    butler = new $window.common.Butler
+    client = new $window.common.Client
 
     reconnectTimeout = null
 
     reconnect = ->
       $timeout.cancel reconnectTimeout
-      reconnectTimeout = $timeout ->
-        client.open SERVER_URL
-      , 8000
+      reconnectTimeout = $timeout (-> client.open SERVER_URL), 8000
 
     client.open SERVER_URL
 
@@ -39,15 +37,15 @@ angular.module('butler', ['ui.router', 'templates'])
         deferred = $q.defer()
         client.request @name, args, (err, result) ->
           $rootScope.$apply ->
-            if err then deferred.reject(err) else deferred.resolve(result)
-        return deferred.promise;
+            if err then deferred.reject err else deferred.resolve result
+        deferred.promise;
       catch err
         $q.reject err
 
     butler.on '', (args...) ->
       console.log _.now(), @name, args
 
-    return butler
+    butler
 ]
 
 .factory 'debounce', ['$rootScope', ($rootScope) ->

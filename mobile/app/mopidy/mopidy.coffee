@@ -70,7 +70,7 @@ angular.module('mopidy', ['butler'])
     raise = (err) -> throw err
 
     fetch = (method, setter) ->
-      butler.call(method).then setter, raise
+      (butler.call method).then setter, raise
 
     sync = ->
       fetch 'mopidy.playback.get_state', setState
@@ -102,7 +102,7 @@ angular.module('mopidy', ['butler'])
       setTimePosition data.time_position
 
     save = (method, args...) ->
-      butler.call(method, args...).then null, (err) ->
+      (butler.call method, args...).then null, (err) ->
         sync
         raise err
 
@@ -147,8 +147,9 @@ angular.module('mopidy', ['butler'])
 
     $scope.toggle = ->
       if $scope.playing
-      then $scope.playback.pause()
-      else $scope.playback.play()
+        $scope.playback.pause()
+      else
+        $scope.playback.play()
   ]
 
 .directive 'mopidyNextButton', ->
@@ -224,6 +225,7 @@ angular.module('mopidy', ['butler'])
         for image in data.album?.image
           if image.size is $scope.size
             return image['#text']
+
     return
   ]
   link: (scope, element, attr, ctrl) ->
@@ -301,9 +303,9 @@ angular.module('mopidy', ['butler'])
 .filter 'time', ->
   (input) ->
     seconds = (input / 1000) | 0
-    Math.floor(seconds / 60) + ':' + ('0' + seconds % 60).slice -2
+    "#{seconds // 60 }:#{('0' + seconds % 60).slice -2}"
 
 .filter 'pluck', -> _.pluck
 
 .filter 'join', ->
-  (input, delimeter) -> (input || []).join delimeter || ' '
+  (input, delimeter) -> (input or []).join delimeter or ' '

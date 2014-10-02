@@ -1,10 +1,10 @@
 <a class="bar bar-footer bar-stable mopidy playback-bar"
   ui-sref="app.mopidy.playback"
-  ng-show="playback.currentTlTrack">
+  ng-show="mopidy.currentTlTrack">
   <mopidy-album-image class="album-image"
-    album="playback.currentTlTrack.track.album" size="medium">
+    album="mopidy.currentTlTrack.track.album" size="medium">
   </mopidy-album-image>
-  <mopidy-track-info class="track-info" track="playback.currentTlTrack.track">
+  <mopidy-track-info class="track-info" track="mopidy.currentTlTrack.track">
   </mopidy-track-info>
   <mopidy-play-button class="pull-right" stop-event="click">
   </mopidy-play-button>

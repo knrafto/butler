@@ -33,6 +33,7 @@ angular.module('butler', ['ui.router', 'templates'])
         butler.emit name, event.params...
 
     butler.register '', (args...) ->
+      args = (angular.copy arg for arg in args)
       try
         deferred = $q.defer()
         client.request @name, args, (err, result) ->

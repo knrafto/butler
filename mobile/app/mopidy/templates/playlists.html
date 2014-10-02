@@ -1,7 +1,7 @@
 <ion-view title="Playlists">
   <ion-content>
     <div class="list">
-      <a class="item" ng-repeat="playlist in mopidy.playlists"
+      <a class="item" style="width: 100%" ng-repeat="playlist in playlists"
         ui-sref="^.playlist({ uri: playlist.uri })">
         {{playlist.name}}
       </a>

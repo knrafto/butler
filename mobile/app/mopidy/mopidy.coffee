@@ -15,7 +15,7 @@ angular.module('mopidy', ['butler'])
   .state 'app.mopidy.playback',
     url: '/playback'
     templateUrl: 'mopidy/templates/playback.html'
-    controller: 'PlaybackCtrl'
+    controller: 'MopidyCtrl'
 
   .state 'app.mopidy.search',
     url: '/search'
@@ -24,19 +24,29 @@ angular.module('mopidy', ['butler'])
   .state 'app.mopidy.playlists',
     url: '/playlists'
     templateUrl: 'mopidy/templates/playlists.html'
+    controller: ['$scope', 'playlists', ($scope, playlists) ->
+      $scope.playlists = playlists
+    ]
+    resolve:
+      playlists: ['mopidy', (mopidy) ->
+        mopidy.getPlaylists()
+      ]
 
   .state 'app.mopidy.playlist',
     url: '/playlist/:uri'
     templateUrl: 'mopidy/templates/playlist.html'
-    controller: ['$scope', '$stateParams', 'mopidy',
-      ($scope,  $stateParams,  mopidy) ->
-        $scope.playlist = mopidy.getPlaylist $stateParams.uri
+    controller: ['$scope', 'playlist', ($scope, playlist) ->
+      $scope.playlist = playlist
     ]
+    resolve:
+      playlist: ['$stateParams', 'mopidy', ($stateParams, mopidy) ->
+        mopidy.getPlaylist $stateParams.uri
+      ]
 ]
 
-.service 'playback', ['$interval', 'butler', 'debounce',
+.service 'mopidy', ['$interval', 'butler', 'debounce',
  ($interval, butler, debounce) ->
-    playback =
+    mopidy =
       state: 'stopped'
       currentTlTrack: null
       timePosition: 0
@@ -47,30 +57,28 @@ angular.module('mopidy', ['butler'])
     updateTimer = ->
       $interval.cancel timer
       lastUpdate = _.now()
-      if playback.state is 'playing'
+      if mopidy.state is 'playing'
         timer = $interval ->
-          playback.timePosition += _.now() - lastUpdate
+          mopidy.timePosition += _.now() - lastUpdate
           lastUpdate = _.now()
         , 100
 
     updateInterval = 100
 
     setState = debounce updateInterval, (state) ->
-      old = playback.state
-      playback.state = state
+      old = mopidy.state
+      mopidy.state = state
       updateTimer() unless state is old
 
     setCurrentTlTrack = debounce updateInterval, (track) ->
-      playback.currentTlTrack = track
+      mopidy.currentTlTrack = track
 
     setTimePosition = debounce updateInterval, (position) ->
-      playback.timePosition = position
-      updateTimer()
-
-    raise = (err) -> throw err
+      mopidy.timePosition = position
 
     fetch = (method, setter) ->
-      (butler.call method).then setter, raise
+      butler.call method
+        .then setter, (err) -> throw err
 
     sync = ->
       fetch 'mopidy.playback.get_state', setState
@@ -102,31 +110,56 @@ angular.module('mopidy', ['butler'])
       setTimePosition data.time_position
 
     save = (method, args...) ->
-      (butler.call method, args...).then null, (err) ->
-        sync
-        raise err
+      butler.call method, args...
+        .then null, (err) ->
+          sync
+          throw err
 
-    playback.play = ->
-      playback.state = 'playing'
+    mopidy.play = ->
+      mopidy.state = 'playing'
       save 'mopidy.playback.play'
 
-    playback.pause = ->
-      playback.state = 'paused'
+    mopidy.pause = ->
+      mopidy.state = 'paused'
       save 'mopidy.playback.pause'
 
-    # TODO: tlTrack
-    playback.next = -> save 'mopidy.playback.next'
-    playback.previous = -> save 'mopidy.playback.previous'
+    mopidy.next = -> save 'mopidy.playback.next'
+    mopidy.previous = -> save 'mopidy.playback.previous'
 
-    playback.seek = (position) ->
-      playback.timePosition = position
+    mopidy.seek = (position) ->
+      mopidy.timePosition = position
       save 'mopidy.playback.seek', position
 
-    return playback
+    mopidy.getPlaylists = () ->
+      butler.call 'mopidy.playlists.get_playlists', false
+
+    mopidy.getPlaylist = (uri) ->
+      butler.call 'mopidy.playlists.lookup', uri
+
+    mopidy.queueTrack = (track) ->
+      butler.call 'mopidy.tracklist.get_tl_tracks'
+        .then (tlTracks) ->
+          tlids = (tlTrack.tlid for tlTrack in tlTracks)
+          index = 1 + tlids.indexOf mopidy.currentTlTrack?.tlid
+          butler.call 'mopidy.tracklist.add', [track], index
+        .then null, (err) -> throw err
+
+    mopidy.setTracklist = (tracks, track) ->
+      butler.call 'mopidy.playback.stop', true
+        .then -> butler.call 'mopidy.tracklist.clear'
+        .then -> butler.call 'mopidy.tracklist.add', tracks
+        .then -> butler.call 'mopidy.tracklist.get_tl_tracks'
+        .then (tlTracks) ->
+          for tlTrack in tlTracks when tlTrack.track.uri is track.uri
+            break
+          butler.call 'mopidy.playback.play', tlTrack if tlTrack?
+        .then null, (err) -> throw err
+
+    return mopidy
 ]
 
-.controller 'PlaybackCtrl', ['$scope', 'playback', ($scope, playback) ->
-  $scope.playback = playback
+.controller 'MopidyCtrl', ['$scope', 'mopidy', ($scope, mopidy) ->
+  $scope.mopidy = mopidy
 ]
 
 .directive 'mopidyPlayButton', ->
@@ -141,15 +174,15 @@ angular.module('mopidy', ['butler'])
     '''
   controller: ['$scope', ($scope) ->
     $scope.$watch ->
-      $scope.playback.state is 'playing'
+      $scope.mopidy.state is 'playing'
     , (playing) ->
       $scope.playing = playing
 
     $scope.toggle = ->
       if $scope.playing
-        $scope.playback.pause()
+        $scope.mopidy.pause()
       else
-        $scope.playback.play()
+        $scope.mopidy.play()
   ]
 
 .directive 'mopidyNextButton', ->
@@ -157,7 +190,7 @@ angular.module('mopidy', ['butler'])
   replace: true
   template: '''
     <button class="button button-icon icon ion-ios7-skipforward"
-      ng-click="playback.next()">
+      ng-click="mopidy.next()">
     </button>
     '''
 
@@ -166,7 +199,7 @@ angular.module('mopidy', ['butler'])
   replace: true
   template: '''
     <button class="button button-icon icon ion-ios7-skipbackward"
-      ng-click="playback.previous()">
+      ng-click="mopidy.previous()">
     </button>
     '''
 
@@ -193,12 +226,12 @@ angular.module('mopidy', ['butler'])
       length: 0
 
     $scope.$watch ->
-      $scope.playback.timePosition
+      $scope.mopidy.timePosition
     , (position) ->
       $scope.slider.position = position unless seeking
 
     $scope.$watch ->
-      $scope.playback.currentTlTrack?.track.length
+      $scope.mopidy.currentTlTrack?.track.length
     , (length) ->
       $scope.slider.length = length or 0
 
@@ -206,7 +239,7 @@ angular.module('mopidy', ['butler'])
 
     $scope.endSeek = ->
       seeking = false
-      $scope.playback.seek $scope.slider.position
+      $scope.mopidy.seek $scope.slider.position
   ]
 
 .directive 'mopidyAlbumImage', ->
@@ -246,44 +279,39 @@ angular.module('mopidy', ['butler'])
     </div>
     '''
 
-# .directive('mopidyTrackList', function() {
-#   return {
-#     restrict: 'E',
-#     replace: true,
-#     scope: {
-#       tracks: '='
-#     },
-#     templateUrl: 'templates/mopidy/track-list.html',
-#     controller: 'TrackListCtrl'
-#   }
-# })
+.directive 'mopidyTracklist', ->
+  restrict: 'E'
+  replace: true
+  scope:
+    tracks: '='
+  templateUrl: 'mopidy/templates/tracklist.html'
+  controller: 'TracklistCtrl'
 
-# .controller('TrackListCtrl', function($scope, $ionicActionSheet, mopidy) {
-#   $scope.trackAction = function(track) {
-#     $ionicActionSheet.show({
-#       buttons: [
-#         { text: 'Queue' },
-#         { text: 'Play from here' }
-#       ],
-#       cancelText: 'Cancel',
-#       buttonClicked: function(index) {
-#         if (index === 0) {
-#           mopidy.queueTrack(track);
-#         } else if (index === 1) {
-#           mopidy.setTracklist($scope.tracks, track);
-#         }
-#         return true;
-#       }
-#     });
-#   };
-# })
+.controller 'TracklistCtrl', ['$scope', '$ionicActionSheet', 'mopidy',
+  ($scope, $ionicActionSheet, mopidy) ->
+    $scope.trackAction = (track) ->
+      $ionicActionSheet.show
+        buttons: [
+          text: 'Queue'
+        ,
+          text: 'Play from here'
+        ]
+        cancelText: 'Cancel'
+        buttonClicked: (index) ->
+          switch index
+            when 0 then mopidy.queueTrack track
+            when 1 then mopidy.setTracklist $scope.tracks, track
+          true
+
+    return
+]
 
 .directive 'mopidyPlaybackBar', ->
   restrict: 'E'
   replace: true
   scope: false
   templateUrl: 'mopidy/templates/playback-bar.html'
-  controller: 'PlaybackCtrl'
+  controller: 'MopidyCtrl'
 
 .directive 'integer', ->
   restrict: 'A'

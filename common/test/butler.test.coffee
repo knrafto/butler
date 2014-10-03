@@ -1,3 +1,5 @@
+assert = require 'assert'
+
 Butler = require '../butler'
 
 # An Agency is where spies are created
@@ -9,11 +11,11 @@ class Agency
   spy: (name) ->
     spy = @spies[name]
     unless spy?
-      agency = @
+      agency = this
       spy = @spies[name] = (args...) ->
         agency.calls.push
           spy: name
-          object: @
+          object: this
           args: args
         return name
     return spy
@@ -34,7 +36,7 @@ describe 'Butler', ->
     butler = new Butler
     agency = new Agency
 
-  describe 'on', ->
+  describe '#on', ->
     it 'should add listeners', ->
       butler.on 'foo', agency.spy 'one'
       butler.on 'foo', agency.spy 'two'
@@ -43,14 +45,14 @@ describe 'Butler', ->
       butler.emit 'bar', 2
       butler.emit 'foo', 3
 
-      expect(agency.calls).toEqual [
+      assert.deepEqual agency.calls, [
         makeCall 'one', 'foo', 'foo', '', [1]
         makeCall 'two', 'foo', 'foo', '', [1]
         makeCall 'one', 'foo', 'foo', '', [3]
         makeCall 'two', 'foo', 'foo', '', [3]
       ]
 
-  describe 'off', ->
+  describe '#off', ->
     it 'should remove listeners', ->
       butler.on 'foo', agency.spy 'one'
       butler.on 'foo', agency.spy 'two'
@@ -59,7 +61,7 @@ describe 'Butler', ->
 
       butler.emit 'foo'
 
-      expect(agency.calls).toEqual [
+      assert.deepEqual agency.calls, [
         makeCall 'one', 'foo', 'foo', ''
         makeCall 'three', 'foo', 'foo', ''
       ]
@@ -74,12 +76,12 @@ describe 'Butler', ->
       butler.emit 'foo.bar'
       butler.emit 'foo.bar'
 
-      expect(agency.calls).toEqual [
+      assert.deepEqual agency.calls, [
         makeCall 'one', 'foo.bar', 'foo.bar', ''
         makeCall 'two', 'foo.bar', 'foo', 'bar'
       ]
 
-  describe 'emit', ->
+  describe '#emit', ->
     it 'should fire all listeners in order', ->
       butler.on '', agency.spy 'one'
       butler.on 'foo', agency.spy 'two'
@@ -88,25 +90,25 @@ describe 'Butler', ->
 
       butler.emit 'foo.bar', 1, 2
 
-      expect(agency.calls).toEqual [
+      assert.deepEqual agency.calls, [
         makeCall 'three', 'foo.bar', 'foo.bar', '', [1, 2]
         makeCall 'two', 'foo.bar', 'foo', 'bar', [1, 2]
         makeCall 'one', 'foo.bar', '', 'foo.bar', [1, 2]
       ]
 
-  describe 'register', ->
+  describe '#register', ->
     it 'should set a delegate', ->
       butler.register 'foo', agency.spy 'one'
       butler.register 'foo', agency.spy 'two'
 
       result = butler.call 'foo', 1
 
-      expect(result).toEqual 'two'
-      expect(agency.calls).toEqual [
+      assert.deepEqual result, 'two'
+      assert.deepEqual agency.calls, [
         makeCall 'two', 'foo', 'foo', '', [1]
       ]
 
-  describe 'unregister', ->
+  describe '#unregister', ->
     it 'should remove a delegate', ->
       butler.register 'foo', agency.spy 'one'
       butler.register 'foo', agency.spy 'two'
@@ -114,10 +116,10 @@ describe 'Butler', ->
 
       result = butler.call 'foo'
 
-      expect(result).toBeUndefined()
-      expect(agency.calls).toEqual []
+      assert.equal result, null
+      assert.deepEqual agency.calls, []
 
-  describe 'call', ->
+  describe '#call', ->
     it 'should fire the last delegate', ->
       butler.register '', agency.spy 'one'
       butler.register 'foo', agency.spy 'two'
@@ -130,14 +132,14 @@ describe 'Butler', ->
         butler.call 'foo.bar.baz', 5, 6
       ]
 
-      expect(results).toEqual ['one', 'two', 'three']
-      expect(agency.calls).toEqual [
+      assert.deepEqual results, ['one', 'two', 'three']
+      assert.deepEqual agency.calls, [
         makeCall 'one', 'baz', '', 'baz', [1, 2]
         makeCall 'two', 'foo', 'foo', '', [3, 4]
         makeCall 'three', 'foo.bar.baz', 'foo.bar', 'baz', [5, 6]
       ]
 
-  describe 'reset', ->
+  describe '#reset', ->
     it 'should remove all handlers', ->
       butler.on 'foo', agency.spy 'one'
       butler.on 'foo', agency.spy 'two'
@@ -147,7 +149,7 @@ describe 'Butler', ->
       butler.emit 'foo'
       butler.emit 'bar'
 
-      expect(agency.calls).toEqual []
+      assert.deepEqual agency.calls, []
 
     it 'should remove all delegates', ->
       butler.register 'foo', agency.spy 'one'
@@ -160,5 +162,5 @@ describe 'Butler', ->
         butler.call 'bar'
       ]
 
-      expect(results).toEqual [undefined, undefined]
-      expect(agency.calls).toEqual []
+      assert.deepEqual results, [undefined, undefined]
+      assert.deepEqual agency.calls, []

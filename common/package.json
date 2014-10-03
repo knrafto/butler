@@ -4,7 +4,7 @@
   "description": "Common infrastructure for the butler system",
   "author": "Kyle Raftogianis <knrafto@gmail.com>",
   "scripts": {
-    "test": "jasmine-node --coffee tests"
+    "test": "mocha --compilers coffee:coffee-script/register"
   },
   "main": "index.js",
   "repository": {
@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "coffee-script": "^1.8.0",
-    "jasmine-node": "^2.0.0-beta4",
+    "mocha": "^1.21.4",
     "rewire": "^2.1.0"
   },
   "license": "MIT"

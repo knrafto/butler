@@ -1,13 +1,28 @@
-Q      = require 'q'
+Q                   = require 'q'
 
-butler = require '../butler'
-Client = require '../../common/client'
+butler              = require '../butler'
+{Client, Reconnect} = require '../../common'
 
 module.exports = (config) ->
-  client = new Client
-  reconnectTimeout = null
+  client = null
 
-  client.open config.url
+  reconnect = new Reconnect ->
+    client = new Client config.url
+
+    client.on 'open', ->
+      reconnect.success()
+      butler.emit 'mopidy.open'
+
+    client.on 'close', (code, message) ->
+      reconnect.retry()
+      butler.emit 'mopidy.close', code, message
+
+    client.on 'error', (err) ->
+      client.close()
+      reconnect.retry()
+      butler.emit 'log.error', 'mopidy', err
+
+    client.on 'event', (event, data) -> butler.emit "mopidy.#{event}", data
 
   butler.register 'mopidy', (args...) ->
     try
@@ -17,16 +32,3 @@ module.exports = (config) ->
       deferred.promise
     catch err
       Q.reject err
-
-  client.on 'open', ->
-    clearTimeout reconnectTimeout
-    butler.emit 'mopidy.connect'
-
-  client.on 'close', (code, message) ->
-    butler.emit 'mopidy.disconnect', code, message
-    clearTimeout reconnectTimeout
-    reconnectTimeout = setTimeout (-> client.open config.url), 8000
-
-  client.on 'error', (errno) -> butler.emit 'log.error', 'mopidy', errno
-
-  client.on 'event', (event, data) -> butler.emit "mopidy.#{event}", data

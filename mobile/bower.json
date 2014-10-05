@@ -7,6 +7,7 @@
   "main": "app/app.js",
   "dependencies": {
     "ionic": "1.0.0-beta.13",
+    "angular": "^1.3.0",
     "underscore": "~1.7.0"
   },
   "license": "MIT"

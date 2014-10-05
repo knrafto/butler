@@ -14,7 +14,12 @@ templateCache = require 'gulp-angular-templatecache'
 
 paths =
   lib: [
-    'components/ionic/release/js/ionic.bundle.js'
+    'components/angular/angular.js'
+    'components/angular-animate/angular-animate.js'
+    'components/angular-sanitize/angular-sanitize.js'
+    'components/angular-ui-router/release/angular-ui-router.js'
+    'components/ionic/release/js/ionic.js'
+    'components/ionic/release/js/ionic-angular.js'
     'components/underscore/underscore.js'
   ]
   common: '../common'

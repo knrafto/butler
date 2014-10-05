@@ -1,4 +1,4 @@
-angular.module('mopidy', ['butler'])
+angular.module('mopidy', ['core'])
 
 .config ['$stateProvider', ($stateProvider) ->
   $stateProvider
@@ -44,8 +44,8 @@ angular.module('mopidy', ['butler'])
       ]
 ]
 
-.service 'mopidy', ['$interval', 'butler', 'debounce',
- ($interval, butler, debounce) ->
+.service 'mopidy', ['$interval', '$exceptionHandler', 'butler', 'debounce',
+ ($interval, $exceptionHandler, butler, debounce) ->
     mopidy =
       state: 'stopped'
       currentTlTrack: null
@@ -63,22 +63,23 @@ angular.module('mopidy', ['butler'])
           lastUpdate = _.now()
         , 100
 
-    updateInterval = 100
+    updateInterval = 50
 
     setState = debounce updateInterval, (state) ->
       old = mopidy.state
       mopidy.state = state
-      updateTimer() unless state is old
+      updateTimer()
 
     setCurrentTlTrack = debounce updateInterval, (track) ->
       mopidy.currentTlTrack = track
 
     setTimePosition = debounce updateInterval, (position) ->
       mopidy.timePosition = position
+      updateTimer()
 
     fetch = (method, setter) ->
       butler.call method
-        .then setter, (err) -> throw err
+        .then setter, $exceptionHandler
 
     sync = ->
       fetch 'mopidy.playback.get_state', setState
@@ -113,7 +114,7 @@ angular.module('mopidy', ['butler'])
       butler.call method, args...
         .then null, (err) ->
           sync
-          throw err
+          $exceptionHandler err
 
     mopidy.play = ->
       mopidy.state = 'playing'
@@ -142,7 +143,7 @@ angular.module('mopidy', ['butler'])
           tlids = (tlTrack.tlid for tlTrack in tlTracks)
           index = 1 + tlids.indexOf mopidy.currentTlTrack?.tlid
           butler.call 'mopidy.tracklist.add', [track], index
-        .then null, (err) -> throw err
+        .then null, $exceptionHandler
 
     mopidy.setTracklist = (tracks, track) ->
       butler.call 'mopidy.playback.stop', true
@@ -153,7 +154,7 @@ angular.module('mopidy', ['butler'])
           for tlTrack in tlTracks when tlTrack.track.uri is track.uri
             break
           butler.call 'mopidy.playback.play', tlTrack if tlTrack?
-        .then null, (err) -> throw err
+        .then null, $exceptionHandler
 
     return mopidy
 ]
@@ -316,15 +317,13 @@ angular.module('mopidy', ['butler'])
 .directive 'integer', ->
   restrict: 'A'
   require: 'ngModel'
-  link: (scope, elm, attrs, ctrl) ->
+  link: (scope, element, attrs, ctrl) ->
     ctrl.$parsers.unshift parseInt
 
 .directive 'stopEvent', ->
   restrict: 'A'
-  scope:
-    name: '@stopEvent'
-  link: (scope, element, attr) ->
-    element.bind scope.name, (event) ->
+  link: (scope, element, attrs) ->
+    element.bind attrs.stopEvent, (event) ->
       event.stopPropagation()
       event.preventDefault()
 

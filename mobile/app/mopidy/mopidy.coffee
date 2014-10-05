@@ -256,7 +256,7 @@ angular.module('mopidy', ['core'])
       return $q.reject() unless album
       butler.call 'lastfm.albumInfo', album.name, album.artists[0].name
       .then (data) ->
-        for image in data.album?.image
+        for image in data.album?.image or []
           if image.size is $scope.size
             return image['#text']
 

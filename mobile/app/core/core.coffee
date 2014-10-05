@@ -1,10 +1,13 @@
 angular.module 'core', ['ionic', 'templates', 'butler', 'settings']
 
-# .factory '$exceptionHandler', ['$window', ($window) ->
-#   (err) ->
-#     console.log err.stack
-#     $window.alert err.message
-# ]
+.config ['$provide', ($provide) ->
+  $provide.decorator '$exceptionHandler', ['$delegate', '$injector',
+    ($delegate, $injector) ->
+      (err, cause) ->
+        ($injector.get 'butler').emit 'error', err, cause
+        $delegate err, cause
+  ]
+]
 
 .run ['$rootScope', '$exceptionHandler', ($rootScope, $exceptionHandler) ->
   $rootScope.$on '$stateChangeError',

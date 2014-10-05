@@ -20,23 +20,18 @@ module.exports = class Butler
   on: (name, fn) ->
     @handlers[name] ?= []
     @handlers[name].push fn
-    this
 
   # Unregister a handler for an event.
   off: (name, fn) ->
     remove @handlers[name], fn if @handlers[name]?
-    this
 
   # Call handlers for an event and all events below it. For example, emitting
   # 'foo.bar.baz' will call handlers for '', 'foo', 'foo.bar', and
-  # 'foo.bar.baz', in that order.
+  # 'foo.bar.baz' in an unspecified order.
   emit: (name, args...) ->
-    fns = []
     for context in walk name
       for fn in @handlers[context.prefix] or []
-        fns.push [fn, context]
-    fn.apply context, args for [fn, context] in fns
-    this
+        fn.apply context, args
 
   # Register a delegate function for a method. Methods are namespaced, so if a
   # method 'foo.bar.baz' is called, the methods 'foo.bar.baz', 'foo.bar',
@@ -45,12 +40,10 @@ module.exports = class Butler
   # apply().
   register: (name, fn) ->
     @delegates[name] = fn
-    this
 
   # Unregister a delegate function for a method.
   unregister: (name) ->
     @delegates[name] = null
-    this
 
   # Call a method. If for example a method 'foo.bar.baz' is called, the
   # methods 'foo.bar.baz', 'foo.bar', 'foo', and '' will be searched until a
@@ -65,4 +58,3 @@ module.exports = class Butler
   reset: ->
     @handlers = {}
     @delegates = {}
-    this

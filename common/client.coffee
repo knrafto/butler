@@ -1,24 +1,29 @@
 {EventEmitter} = require 'events'
 WebSocket      = require 'ws'
 
-# Create a Client that connects to a remote server over a websocket.
+# A client that connects to a remote server over a websocket.
 module.exports = class Client extends EventEmitter
   constructor: (url, protocols) ->
     @ws = new WebSocket url, protocols
     @nextId = 0
     @requests = {}
 
-    @ws.onopen = => @emit 'open'
+    @ws.onopen = =>
+      @emit 'open'
 
     @ws.onclose = (event) =>
       try
+        error = new Error 'WebSocket closed'
         requests = @requests
         @requests = {}
         for own _, callback of requests
-          callback? new Error 'WebSocket closed'
+          callback error, null
       catch err
         @emit 'error', err
       @emit 'close', event.code, event.reason
+
+    @ws.onerror = =>
+      @emit 'error', new Error 'WebSocket error'
 
     @ws.onmessage = (event) =>
       try
@@ -35,13 +40,13 @@ module.exports = class Client extends EventEmitter
       catch err
         @emit 'error', err
 
-    @ws.onerror = => @emit 'error', new Error 'WebSocket error'
-
-  # Close the connection. The Client will try to reconnect.
-  close: (code, reason) -> @ws.close code, reason
+  close: ->
+    @ws.close()
 
   # Asynchronosly send a JSON-RPC request.
   request: (method, args, callback) ->
+    unless @ws.readyState is WebSocket::OPEN
+      throw new Error "WebSocket is not open"
     requestId = @nextId++
     @requests[requestId] = callback
     @ws.send JSON.stringify

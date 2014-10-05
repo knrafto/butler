@@ -16,7 +16,13 @@ angular.module('butler', ['settings'])
 
     connect = new Action (url) ->
       client?.close()
-      client = new Client url
+      client = null
+
+      try
+        client = new Client url
+      catch err
+        $exceptionHandler err
+        return
 
       client.on 'open', ->
         emit 'open'
@@ -43,5 +49,6 @@ angular.module('butler', ['settings'])
       $q (resolve, reject) ->
         args = (angular.copy arg for arg in args)
         client.request method, args, (err, result) ->
+          console.log method, args..., err or result
           if err? then reject err else resolve result
 ]

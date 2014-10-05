@@ -6,5 +6,5 @@ angular.module('app', ['mopidy'])
       abstract: true
       templateUrl: 'menu.html'
 
-    $urlRouterProvider.otherwise '/mopidy/home'
+    $urlRouterProvider.otherwise '/settings'
 ]

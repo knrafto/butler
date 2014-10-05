@@ -86,6 +86,7 @@ angular.module('mopidy', ['core'])
       fetch 'mopidy.playback.get_current_tl_track', setCurrentTlTrack
       fetch 'mopidy.playback.get_time_position', setTimePosition
 
+    sync()
     butler.on 'open', sync
 
     butler.on 'mopidy.playback_state_changed', (data) ->
@@ -214,8 +215,8 @@ angular.module('mopidy', ['core'])
       <input integer type="range"
         min="0" max="{{slider.length}}"
         ng-model="slider.position"
-        ng-mousedown="startSeek()"
-        ng-mouseup="endSeek()">
+        on-touch="startSeek()"
+        on-release="endSeek()">
       <i>{{slider.length | time}}</i>
     </div>
     '''

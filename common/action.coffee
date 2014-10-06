@@ -8,7 +8,7 @@ module.exports = class Action
 
   callLater: (delay, args...) ->
     @cancel()
-    @timeoutId = setTimeout (=> @fn args...), delay
+    @timeoutId = setTimeout (=> @callNow args...), delay
 
   cancel: ->
     clearTimeout @timeoutId

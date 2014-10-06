@@ -8,23 +8,28 @@ module.exports = (config) ->
 
   connect = new Action ->
     client?.close()
-    client = new Client config.url
+
+    try
+      client = new Client config.url
+    catch err
+      butler.emit 'error', err
+      return
 
     client.on 'open', ->
       butler.emit 'mopidy.open'
 
     client.on 'close', (code, message) ->
       butler.emit 'mopidy.close', code, message
-      connect.callLater 2000
+      connect.run 2000
 
     client.on 'error', (err) ->
-      butler.emit 'log.error', 'mopidy', err
-      connect.callLater 2000
+      butler.emit 'error', err
+      connect.run 2000
 
     client.on 'event', (event, data) ->
       butler.emit "mopidy.#{event}", data
 
-  connect.callNow()
+  connect.run 0
 
   butler.register 'mopidy', (args...) ->
     method = @suffix

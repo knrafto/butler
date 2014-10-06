@@ -9,8 +9,6 @@ module.exports = (config) ->
       format: 'json'
     max: config.cacheSize
 
-  butler.register 'lastfm.albumInfo', (album, artist) ->
-    lastfm.get
-      method: 'album.getInfo'
-      album: album
-      artist: artist
+  butler.register 'lastfm', (params) ->
+    params.method = @suffix
+    lastfm.get params

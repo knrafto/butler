@@ -1,4 +1,11 @@
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes.dex : \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/R$attr.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/R$string.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/HelloCordova.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/BuildConfig.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/R$xml.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/R.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/knrafto/butler/R$drawable.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/WebSocket$3.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/WebSocket.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/Utils.class \

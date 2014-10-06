@@ -1,4 +1,4 @@
-/home/knrafto/Programming/butler/mobile/platforms/android/ant-gen/io/cordova/hellocordova/R.java \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-gen/com/knrafto/butler/R.java \
  : /home/knrafto/Programming/butler/mobile/platforms/android/res/drawable-port-ldpi/screen.png \
 /home/knrafto/Programming/butler/mobile/platforms/android/res/drawable-mdpi/icon.png \
 /home/knrafto/Programming/butler/mobile/platforms/android/res/drawable-land-mdpi/screen.png \

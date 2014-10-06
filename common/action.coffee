@@ -2,13 +2,9 @@ module.exports = class Action
   constructor: (@fn) ->
     @timeoutId = null
 
-  callNow: (args...) ->
+  run: (delay, args...) ->
     @cancel()
-    @fn args...
-
-  callLater: (delay, args...) ->
-    @cancel()
-    @timeoutId = setTimeout (=> @callNow args...), delay
+    @timeoutId = setTimeout (=> @fn args...), delay
 
   cancel: ->
     clearTimeout @timeoutId

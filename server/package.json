@@ -20,15 +20,10 @@
     "q": "^1.0.1",
     "qs": "^2.2.4",
     "request": "^2.44.0",
-    "winston": "^0.8.0",
     "ws": "^0.4.32"
   },
   "devDependencies": {
-    "coffee-script": "^1.8.0",
-    "jasmine-node": "^2.0.0-beta4",
-    "nock": "^0.48.0",
-    "rewire": "^2.1.0",
-    "sinon": "^1.10.3"
+    "coffee-script": "^1.8.0"
   },
   "license": "MIT"
 }

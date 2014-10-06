@@ -25,13 +25,11 @@ buildUrl = (url, params) ->
 # * url
 # * params
 # * cache
-get = (options) ->
-  {url, params, cache} = options
-  url = buildUrl url, params
-  console.log url
-  if cache? && (cached = cache.get url)?
-    return Q cached
+get = (url, params, cache) ->
   Q.Promise (resolve, reject) ->
+    url = buildUrl url, params
+    if cache? && (cached = cache.get url)?
+      return resolve cached
     request url: url, json: true, (err, response, data) ->
       if err?
         reject err
@@ -47,7 +45,4 @@ module.exports = class API
     @cache = new Cache options
 
   get: (params) ->
-    get
-      url: @url
-      params: extend {}, @params, params
-      cache: @cache
+    get @url, (extend {}, @params, params), @cache

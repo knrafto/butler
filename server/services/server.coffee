@@ -39,7 +39,10 @@ module.exports = (config) ->
       butler.emit 'log.debug', 'request', request
       (handle request).done (response) ->
         butler.emit 'log.debug', 'response', response
-        socket.send response
+        try
+          socket.send response
+        catch err
+          butler.emit 'error', err
 
   butler.on '', (args...) ->
     return if @name.match /^log\./ # don't send log events

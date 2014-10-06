@@ -45,8 +45,6 @@ module.exports = class Client extends EventEmitter
 
   # Asynchronosly send a JSON-RPC request.
   request: (method, args, callback) ->
-    unless @ws.readyState is WebSocket::OPEN
-      throw new Error "WebSocket is not open"
     requestId = @nextId++
     @requests[requestId] = callback
     @ws.send JSON.stringify

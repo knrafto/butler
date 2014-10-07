@@ -24,11 +24,8 @@ paths =
   ]
   common: '../common'
   bundle: 'app/**/*.coffee'
-  index: 'app/index.html'
-  templates: [
-    'app/**/*.html'
-    '!app/index.html'
-  ]
+  index: 'index.html'
+  templates: 'app/**/*.html'
   css: 'components/ionic/release/css/ionic.css'
   sass: 'app/**/*.scss'
   fonts: 'components/ionic/release/fonts/*'
@@ -36,60 +33,61 @@ paths =
 gulp.task 'clean', ->
   gulp.src 'www',
     read: false
-    .pipe clean()
+  .pipe clean()
 
 gulp.task 'lib', ->
   gulp.src paths.lib
-    .pipe concat 'lib.js'
-    .pipe gulp.dest 'www/js'
+  .pipe concat 'lib.js'
+  .pipe gulp.dest 'www/js'
 
 gulp.task 'common', ->
   browserify
-      standalone: 'common'
-      extensions: ['.coffee']
-      entries: paths.common
-    .transform coffeeify
-    .bundle()
-    .pipe source 'common.js'
-    .pipe buffer()
-    .pipe gulp.dest 'www/js'
+    standalone: 'common'
+    extensions: ['.coffee']
+    entries: paths.common
+  .transform coffeeify
+  .bundle()
+  .pipe source 'common.js'
+  .pipe buffer()
+  .pipe gulp.dest 'www/js'
 
 gulp.task 'bundle', ->
+  # TODO: uglify with other files
   gulp.src paths.bundle
-    .pipe sourcemaps.init()
-      .pipe coffee bare: true
-        .on 'error', gutil.log
-      .pipe concat 'bundle.js'
-    .pipe sourcemaps.write()
-    .pipe gulp.dest 'www/js'
+  .pipe sourcemaps.init()
+  .pipe coffee bare: true
+    .on 'error', gutil.log
+  .pipe concat 'bundle.js'
+  .pipe sourcemaps.write '.'
+  .pipe gulp.dest 'www/js'
 
 gulp.task 'index', ->
   gulp.src paths.index
-    .pipe gulp.dest 'www/'
+  .pipe gulp.dest 'www/'
 
 gulp.task 'templates', ->
   gulp.src paths.templates
-    .pipe templateCache(standalone: true)
-    .pipe gulp.dest 'www/js'
+  .pipe templateCache standalone: true
+  .pipe gulp.dest 'www/js'
 
 gulp.task 'css', ->
   gulp.src paths.css
-    .pipe gulp.dest 'www/css'
+  .pipe gulp.dest 'www/css'
 
 gulp.task 'sass', ->
   gulp.src paths.sass
-    .pipe sass()
-    .pipe concat 'bundle.css'
-    .pipe gulp.dest 'www/css'
+  .pipe sass()
+  .pipe concat 'bundle.css'
+  .pipe gulp.dest 'www/css'
 
 gulp.task 'fonts', ->
   gulp.src paths.fonts
-    .pipe gulp.dest 'www/fonts'
+  .pipe gulp.dest 'www/fonts'
 
 gulp.task 'lint', ->
   gulp.src paths.bundle
-    .pipe coffeelint()
-    .pipe coffeelint.reporter()
+  .pipe coffeelint()
+  .pipe coffeelint.reporter()
 
 buildTasks = [
   'lib'
@@ -112,11 +110,13 @@ gulp.task 'watch', buildTasks, ->
   livereloadPort = 35729
   serverPort = 5000
   server = express()
-  server.use livereload(port: livereloadPort)
+  server.use livereload port: livereloadPort
   server.use express.static './www'
   server.listen serverPort
   refresh.listen livereloadPort
-  gulp.watch('www/**').on 'change', refresh.changed
+
+  gulp.watch 'www/**'
+    .on 'change', refresh.changed
 
   # TODO: watchify
   for task in buildTasks

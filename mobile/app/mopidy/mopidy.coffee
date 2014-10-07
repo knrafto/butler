@@ -44,6 +44,14 @@ angular.module('mopidy', ['core'])
       ]
 ]
 
+.factory 'debounce', ['$rootScope', ($rootScope) ->
+  (wait, fn) ->
+    _.debounce (args...) ->
+      context = this
+      $rootScope.$apply -> fn.apply context, args
+    , wait
+]
+
 .service 'mopidy', ['$interval', '$exceptionHandler', 'butler', 'debounce',
  ($interval, $exceptionHandler, butler, debounce) ->
     mopidy =

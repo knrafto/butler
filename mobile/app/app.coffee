@@ -1,10 +1,16 @@
-angular.module('app', ['mopidy'])
+angular.module('app', ['mopidy', 'settings'])
 
 .config ['$stateProvider', '$urlRouterProvider',
   ($stateProvider, $urlRouterProvider) ->
-    $stateProvider.state 'app',
+    $stateProvider
+
+    .state 'app',
       abstract: true
       templateUrl: 'menu.html'
 
-    $urlRouterProvider.otherwise '/settings'
+    .state 'app.home',
+      url: '/'
+      templateUrl: 'home.html'
+
+    $urlRouterProvider.otherwise '/'
 ]

@@ -20,7 +20,6 @@ angular.module('settings', ['core'])
       <span class="item-note">{{value}}</span>
     </div>
     '''
-
   controller: 'SettingCtrl'
 
 .controller 'SettingCtrl', ['$scope', '$ionicModal', 'settings',
@@ -29,10 +28,10 @@ angular.module('settings', ['core'])
     $scope.edit = {}
 
     $ionicModal.fromTemplateUrl 'settings/edit.html',
-        scope: $scope
-        animation: 'slide-in-up'
-      .then (modal) ->
-        $scope.modal = modal
+      scope: $scope
+      animation: 'slide-in-up'
+    .then (modal) ->
+      $scope.modal = modal
 
     $scope.edit = ->
       $scope.edit.value = $scope.value

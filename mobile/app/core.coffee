@@ -1,4 +1,27 @@
-angular.module('butler', ['settings'])
+angular.module('core', ['ionic', 'templates'])
+
+.factory 'settings', ['$window', ($window) ->
+  localStorage = $window.localStorage
+  watchers = {}
+
+  watch: (key, fn) ->
+    watchers[key] ?= []
+    watchers[key].push fn
+    value = localStorage.getItem key
+    fn value, value
+    return
+
+  get: (key) ->
+    localStorage.getItem key
+
+  set: (key, value) ->
+    old = localStorage.getItem key
+    return if value is old
+    localStorage.setItem key, value
+    for fn in watchers[key] or []
+      fn value, old
+    return
+]
 
 .factory 'butler', ['$window', ($window) ->
   {Butler} = $window.common
@@ -29,17 +52,17 @@ angular.module('butler', ['settings'])
 
       client.on 'close', (code, reason) ->
         emit 'close', code, reason
-        connect.callLater 2000, url
+        connect.run 2000, url
 
       client.on 'error', (err) ->
         $exceptionHandler err
-        connect.callLater 2000, url
+        connect.run 2000, url
 
       client.on 'event', (name, event) ->
         emit name, event.params...
 
     settings.watch 'butler.url', (url) ->
-      connect.callNow url
+      connect.run 0, url
 
     butler.on '', (args...) ->
       console.log @name, args...
@@ -51,4 +74,10 @@ angular.module('butler', ['settings'])
         client.request method, args, (err, result) ->
           console.log method, args..., err or result
           if err? then reject err else resolve result
+]
+
+.run ['$rootScope', '$exceptionHandler', ($rootScope, $exceptionHandler) ->
+  $rootScope.$on '$stateChangeError',
+    (event, toState, toParams, fromState, fromParams, error) ->
+      $exceptionHandler error
 ]

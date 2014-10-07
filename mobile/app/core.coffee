@@ -71,6 +71,7 @@ angular.module('core', ['ionic', 'templates'])
       method = @name
       $q (resolve, reject) ->
         args = (angular.copy arg for arg in args)
+        throw new Error 'Client not opened' unless client?
         client.request method, args, (err, result) ->
           console.log method, args..., err or result
           if err? then reject err else resolve result

@@ -3,7 +3,7 @@ assert = require 'assert'
 rewire = require 'rewire'
 
 class WebSocket
-  @sockets: {}
+  @instance = null
 
   CONNECTING: 0
   OPEN: 1
@@ -13,26 +13,27 @@ class WebSocket
   constructor: (@url, @protocols)  ->
     @readyState = @CONNECTING
     @sent = []
-    WebSocket.sockets[@url] = this
+    WebSocket.instance = this
 
   open: ->
     @readyState = @OPEN
-    @onopen?()
+    @onopen()
 
   close: (code, reason) ->
     unless @readyState in [@CLOSING, @CLOSED]
       @readyState = @CLOSED
-      delete WebSocket.sockets[@url]
-      @onclose? code: code, reason: reason
+      @onclose code: code, reason: reason
 
-  error: -> @onerror?()
+  error: ->
+    @onerror()
 
   send: (data) ->
     unless @readyState is @OPEN
       throw new Error 'WebSocket is not open'
     @sent.push JSON.parse data
 
-  receive: (data) -> @onmessage? data: JSON.stringify data
+  receive: (data) ->
+    @onmessage data: JSON.stringify data
 
 Client = rewire '../client'
 Client.__set__ 'WebSocket', WebSocket
@@ -46,7 +47,7 @@ describe 'Client', ->
 
   beforeEach ->
     client = new Client url, protocols
-    socket = WebSocket.sockets[url]
+    socket = WebSocket.instance
 
   it 'should open a new connection', ->
     assert.equal socket.url, url

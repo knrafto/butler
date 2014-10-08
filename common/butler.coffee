@@ -9,10 +9,6 @@ module.exports = class Butler
       prefix: parts[0...i].join '.'
       suffix: parts[i...].join('.')
 
-  remove = (lst, e) ->
-    i = lst.indexOf e
-    lst.splice i, 1 unless i is -1
-
   # Register a handler for an event. Events are namespaced, so a handler for
   # 'foo' will receive events 'foo', 'foo.bar', 'foo.bar.baz', etc. To listen
   # to all events, listen to ''. Handler functions will be passed a context
@@ -20,10 +16,6 @@ module.exports = class Butler
   on: (name, fn) ->
     @handlers[name] ?= []
     @handlers[name].push fn
-
-  # Unregister a handler for an event.
-  off: (name, fn) ->
-    remove @handlers[name], fn if @handlers[name]?
 
   # Call handlers for an event and all events below it. For example, emitting
   # 'foo.bar.baz' will call handlers for '', 'foo', 'foo.bar', and
@@ -40,10 +32,6 @@ module.exports = class Butler
   # apply().
   register: (name, fn) ->
     @delegates[name] = fn
-
-  # Unregister a delegate function for a method.
-  unregister: (name) ->
-    @delegates[name] = null
 
   # Call a method. If for example a method 'foo.bar.baz' is called, the
   # methods 'foo.bar.baz', 'foo.bar', 'foo', and '' will be searched until a

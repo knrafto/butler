@@ -9,16 +9,15 @@ class Agency
     @calls = []
 
   spy: (name) ->
-    spy = @spies[name]
-    unless spy?
+    unless @spies[name]
       agency = this
-      spy = @spies[name] = (args...) ->
+      @spies[name] = (args...) ->
         agency.calls.push
           spy: name
           object: this
           args: args
         return name
-    return spy
+    return @spies[name]
 
 makeCall = (spy, name, prefix, suffix, args) ->
   spy: spy
@@ -52,35 +51,6 @@ describe 'Butler', ->
         makeCall 'two', 'foo', 'foo', '', [3]
       ]
 
-  describe '#off', ->
-    it 'should remove listeners', ->
-      butler.on 'foo', agency.spy 'one'
-      butler.on 'foo', agency.spy 'two'
-      butler.on 'foo', agency.spy 'three'
-      butler.off 'foo', agency.spy 'two'
-
-      butler.emit 'foo'
-
-      assert.deepEqual agency.calls, [
-        makeCall 'one', 'foo', 'foo', ''
-        makeCall 'three', 'foo', 'foo', ''
-      ]
-
-    it 'should work when called from an event', ->
-      butler.on 'foo.bar', ->
-        butler.off 'foo.bar', agency.spy 'one'
-        butler.off 'foo', agency.spy 'two'
-      butler.on 'foo.bar', agency.spy 'one'
-      butler.on 'foo', agency.spy 'two'
-
-      butler.emit 'foo.bar'
-      butler.emit 'foo.bar'
-
-      assert.deepEqual agency.calls, [
-        makeCall 'one', 'foo.bar', 'foo.bar', ''
-        makeCall 'two', 'foo.bar', 'foo', 'bar'
-      ]
-
   describe '#emit', ->
     it 'should fire all listeners in order', ->
       butler.on '', agency.spy 'one'
@@ -107,17 +77,6 @@ describe 'Butler', ->
       assert.deepEqual agency.calls, [
         makeCall 'two', 'foo', 'foo', '', [1]
       ]
-
-  describe '#unregister', ->
-    it 'should remove a delegate', ->
-      butler.register 'foo', agency.spy 'one'
-      butler.register 'foo', agency.spy 'two'
-      butler.unregister 'foo'
-
-      result = butler.call 'foo'
-
-      assert.equal result, null
-      assert.deepEqual agency.calls, []
 
   describe '#call', ->
     it 'should fire the last delegate', ->

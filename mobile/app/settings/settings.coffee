@@ -41,7 +41,6 @@ angular.module('settings', ['core'])
           type: 'button-positive',
           onTap: ->
             $scope.value = $scope.input.value
-            console.log $scope.value
             settings.set $scope.key, $scope.value
         ]
 

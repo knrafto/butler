@@ -40,9 +40,7 @@ module.exports = (butler, config) ->
         butler.emit 'error', err
 
   butler.on '', (args...) ->
-    return if @name.match /^log\./ # don't send log events
     try
-      butler.emit 'log.debug', 'event', @name, args
       event = JSON.stringify
         event: @name
         params: args

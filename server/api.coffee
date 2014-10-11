@@ -21,10 +21,6 @@ buildUrl = (url, params) ->
   else
     url
 
-# Possible options:
-# * url
-# * params
-# * cache
 get = (url, params, cache) ->
   Q.Promise (resolve, reject) ->
     url = buildUrl url, params

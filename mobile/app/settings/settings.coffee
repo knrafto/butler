@@ -22,28 +22,28 @@ angular.module('settings', ['core'])
     '''
   controller: 'SettingCtrl'
 
-.controller 'SettingCtrl', ['$scope', '$ionicModal', 'settings',
-  ($scope, $ionicModal, settings) ->
+.controller 'SettingCtrl', ['$scope', '$ionicPopup', 'settings',
+  ($scope, $ionicPopup, settings) ->
     $scope.value = settings.get $scope.key
-    $scope.edit = {}
-
-    $ionicModal.fromTemplateUrl 'settings/edit.html',
-      scope: $scope
-      animation: 'slide-in-up'
-    .then (modal) ->
-      $scope.modal = modal
+    $scope.input =
+      value: ''
 
     $scope.edit = ->
-      $scope.edit.value = $scope.value
-      $scope.modal.show()
-
-    $scope.save = ->
-      $scope.value = $scope.edit.value
-      settings.set $scope.key, $scope.value
-      $scope.modal.hide()
-
-    $scope.$on '$destroy', ->
-      $scope.modal.remove()
+      $scope.input.value = $scope.value
+      $ionicPopup.show
+        template: '''<input ng-model="input.value">'''
+        title: $scope.name
+        scope: $scope
+        buttons: [
+          text: 'Cancel'
+        ,
+          text: 'Save',
+          type: 'button-positive',
+          onTap: ->
+            $scope.value = $scope.input.value
+            console.log $scope.value
+            settings.set $scope.key, $scope.value
+        ]
 
     return
 ]

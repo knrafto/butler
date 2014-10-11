@@ -172,18 +172,22 @@ angular.module('mopidy', ['core'])
 
 .controller 'TracklistCtrl', ['$scope', '$ionicActionSheet', 'mopidy',
   ($scope, $ionicActionSheet, mopidy) ->
-    $scope.trackAction = (track) ->
+    $scope.trackAction = (track, tracks) ->
+      buttons = [
+        text: 'Queue'
+        action: -> mopidy.queueTrack track
+      ]
+
+      if tracks
+        buttons.push
+          text: 'Play all from here'
+          action: -> mopidy.setTracklist tracks, track
+
       $ionicActionSheet.show
-        buttons: [
-          text: 'Queue'
-        ,
-          text: 'Play from here'
-        ]
+        buttons: buttons
         cancelText: 'Cancel'
         buttonClicked: (index) ->
-          switch index
-            when 0 then mopidy.queueTrack track
-            when 1 then mopidy.setTracklist $scope.tracks, track
+          buttons[index].action()
           true
 
     return

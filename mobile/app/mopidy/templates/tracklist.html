@@ -3,7 +3,7 @@
     collection-repeat="track in tracks track by track.uri"
     collection-item-width="'100%'"
     collection-item-height="98"
-    ng-click="trackAction(track)">
+    ng-click="trackAction(track, tracks)">
     <mopidy-album-image album="track.album" size="medium"></mopidy-album-image>
     <mopidy-track-info track="track"></mopidy-track-info>
   </div>

@@ -143,6 +143,10 @@ angular.module('mopidy', ['core'])
     mopidy.getPlaylist = (uri) ->
       butler.call 'mopidy.playlists.lookup', uri
 
+    mopidy.search = (query) ->
+      butler.call 'mopidy.library.search',
+        any: query
+
     mopidy.queueTrack = (track) ->
       butler.call 'mopidy.tracklist.get_tl_tracks'
       .then (tlTracks) ->
@@ -172,16 +176,16 @@ angular.module('mopidy', ['core'])
 
 .controller 'TracklistCtrl', ['$scope', '$ionicActionSheet', 'mopidy',
   ($scope, $ionicActionSheet, mopidy) ->
-    $scope.trackAction = (track, tracks) ->
+    $scope.trackAction = (track) ->
       buttons = [
         text: 'Queue'
         action: -> mopidy.queueTrack track
       ]
 
-      if tracks
+      if $scope.isSet
         buttons.push
           text: 'Play all from here'
-          action: -> mopidy.setTracklist tracks, track
+          action: -> mopidy.setTracklist $scope.tracks, track
 
       $ionicActionSheet.show
         buttons: buttons
@@ -193,14 +197,28 @@ angular.module('mopidy', ['core'])
     return
 ]
 
-.controller 'SearchCtrl', ['$scope', 'mopidy', ($scope, mopidy) ->
-  $scope.search =
-    query: ''
+.controller 'SearchCtrl', ['$scope', '$exceptionHandler', 'mopidy',
+  ($scope, $exceptionHandler, mopidy) ->
+    $scope.search =
+      query: ''
+    $scope.result = null
 
-  $scope.clear = ->
-    $scope.search.query = ''
+    $scope.clear = ->
+      $scope.search.query = ''
 
-  return
+    $scope.$watch (-> $scope.search.query), (query) ->
+      $scope.result = null
+      return unless query.length > 2
+      mopidy.search query
+      .then (results) ->
+        return unless $scope.search.query is query
+        for result in results
+          if (result.uri.indexOf 'spotify:search') is 0
+            $scope.result = result
+        return
+      , (err) -> $exceptionHandler err
+
+    return
 ]
 
 .directive 'mopidyPlayButton', ->
@@ -327,6 +345,7 @@ angular.module('mopidy', ['core'])
   replace: true
   scope:
     tracks: '='
+    isSet: '@'
   templateUrl: 'mopidy/templates/tracklist.html'
   controller: 'TracklistCtrl'
 

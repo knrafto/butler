@@ -1,15 +1,13 @@
 Q        = require 'q'
 {Server} = require 'ws'
 
-butler   = require '../butler'
-
 remove = (lst, e) ->
   i = lst.indexOf e
   lst.splice i, 1 unless i is -1
 
 # @module server A service that responds to JSON-RPC requests and emits
 # events over a WebSocket.
-module.exports = (config) ->
+module.exports = (butler, config) ->
   connections = []
   server = new Server config
 

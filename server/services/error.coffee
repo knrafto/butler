@@ -1,5 +1,3 @@
-butler = require '../butler'
-
-module.exports = ->
+module.exports = (butler) ->
   butler.on 'error', (err) ->
     console.log err.stack

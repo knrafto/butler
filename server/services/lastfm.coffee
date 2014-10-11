@@ -1,7 +1,6 @@
-API    = require '../api'
-butler = require '../butler'
+API = require '../api'
 
-module.exports = (config) ->
+module.exports = (butler, config) ->
   lastfm = new API
     url: 'http://ws.audioscrobbler.com/2.0/'
     params:

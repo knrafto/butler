@@ -121,9 +121,9 @@ angular.module('mopidy', ['core'])
 
     save = (method, args...) ->
       butler.call method, args...
-        .then null, (err) ->
-          sync
-          $exceptionHandler err
+      .then null, (err) ->
+        sync()
+        $exceptionHandler err
 
     mopidy.play = ->
       mopidy.state = 'playing'
@@ -148,22 +148,22 @@ angular.module('mopidy', ['core'])
 
     mopidy.queueTrack = (track) ->
       butler.call 'mopidy.tracklist.get_tl_tracks'
-        .then (tlTracks) ->
-          tlids = (tlTrack.tlid for tlTrack in tlTracks)
-          index = 1 + tlids.indexOf mopidy.currentTlTrack?.tlid
-          butler.call 'mopidy.tracklist.add', [track], index
-        .then null, $exceptionHandler
+      .then (tlTracks) ->
+        tlids = (tlTrack.tlid for tlTrack in tlTracks)
+        index = 1 + tlids.indexOf mopidy.currentTlTrack?.tlid
+        butler.call 'mopidy.tracklist.add', [track], index
+      .then null, $exceptionHandler
 
     mopidy.setTracklist = (tracks, track) ->
       butler.call 'mopidy.playback.stop', true
-        .then -> butler.call 'mopidy.tracklist.clear'
-        .then -> butler.call 'mopidy.tracklist.add', tracks
-        .then -> butler.call 'mopidy.tracklist.get_tl_tracks'
-        .then (tlTracks) ->
-          for tlTrack in tlTracks when tlTrack.track.uri is track.uri
-            break
-          butler.call 'mopidy.playback.play', tlTrack if tlTrack?
-        .then null, $exceptionHandler
+      .then -> butler.call 'mopidy.tracklist.clear'
+      .then -> butler.call 'mopidy.tracklist.add', tracks
+      .then -> butler.call 'mopidy.tracklist.get_tl_tracks'
+      .then (tlTracks) ->
+        for tlTrack in tlTracks when tlTrack.track.uri is track.uri
+          break
+        butler.call 'mopidy.playback.play', tlTrack if tlTrack?
+      .then null, $exceptionHandler
 
     return mopidy
 ]

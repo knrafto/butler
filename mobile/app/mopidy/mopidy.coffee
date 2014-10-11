@@ -180,12 +180,10 @@ angular.module('mopidy', ['core'])
       buttons = [
         text: 'Queue'
         action: -> mopidy.queueTrack track
+      ,
+        text: 'Play all from here'
+        action: -> mopidy.setTracklist $scope.tracks, track
       ]
-
-      if $scope.isSet
-        buttons.push
-          text: 'Play all from here'
-          action: -> mopidy.setTracklist $scope.tracks, track
 
       $ionicActionSheet.show
         buttons: buttons
@@ -345,7 +343,6 @@ angular.module('mopidy', ['core'])
   replace: true
   scope:
     tracks: '='
-    isSet: '@'
   templateUrl: 'mopidy/templates/tracklist.html'
   controller: 'TracklistCtrl'
 

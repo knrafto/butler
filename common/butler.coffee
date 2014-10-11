@@ -1,6 +1,8 @@
 # An event and method bus that allows components to dynamically communicate.
 module.exports = class Butler
-  constructor: -> @reset()
+  constructor: ->
+    @handlers = {}
+    @delegates = {}
 
   walk = (name) ->
     parts = name.split '.'
@@ -41,8 +43,3 @@ module.exports = class Butler
       delegate = @delegates[context.prefix]
       return delegate.apply context, args if delegate?
     return
-
-  # Remove all handlers and delegates.
-  reset: ->
-    @handlers = {}
-    @delegates = {}

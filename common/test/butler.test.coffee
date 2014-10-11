@@ -97,29 +97,3 @@ describe 'Butler', ->
         makeCall 'two', 'foo', 'foo', '', [3, 4]
         makeCall 'three', 'foo.bar.baz', 'foo.bar', 'baz', [5, 6]
       ]
-
-  describe '#reset', ->
-    it 'should remove all handlers', ->
-      butler.on 'foo', agency.spy 'one'
-      butler.on 'foo', agency.spy 'two'
-      butler.on 'bar', agency.spy 'three'
-      butler.reset()
-
-      butler.emit 'foo'
-      butler.emit 'bar'
-
-      assert.deepEqual agency.calls, []
-
-    it 'should remove all delegates', ->
-      butler.register 'foo', agency.spy 'one'
-      butler.register 'foo', agency.spy 'two'
-      butler.register 'bar', agency.spy 'three'
-      butler.reset()
-
-      results = [
-        butler.call 'foo'
-        butler.call 'bar'
-      ]
-
-      assert.deepEqual results, [undefined, undefined]
-      assert.deepEqual agency.calls, []

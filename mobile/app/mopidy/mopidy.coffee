@@ -11,6 +11,13 @@ angular.module('mopidy', ['core'])
   .state 'app.mopidy.home',
     url: '/home'
     templateUrl: 'mopidy/templates/home.html'
+    controller: ['$scope', 'playlists', ($scope, playlists) ->
+      $scope.playlists = playlists
+    ]
+    resolve:
+      playlists: ['mopidy', (mopidy) ->
+        mopidy.getPlaylists()
+      ]
 
   .state 'app.mopidy.playback',
     url: '/playback'
@@ -21,17 +28,6 @@ angular.module('mopidy', ['core'])
     url: '/search'
     templateUrl: 'mopidy/templates/search.html'
     controller: 'SearchCtrl'
-
-  .state 'app.mopidy.playlists',
-    url: '/playlists'
-    templateUrl: 'mopidy/templates/playlists.html'
-    controller: ['$scope', 'playlists', ($scope, playlists) ->
-      $scope.playlists = playlists
-    ]
-    resolve:
-      playlists: ['mopidy', (mopidy) ->
-        mopidy.getPlaylists()
-      ]
 
   .state 'app.mopidy.playlist',
     url: '/playlist/:uri'

@@ -1,13 +1,15 @@
 <ion-view title="Music">
-  <ion-content class="has-header">
+  <ion-nav-buttons side="right">
+    <a ui-sref="^.search" class="button button-icon icon ion-ios7-search"></a>
+  </ion-nav-buttons>
+  <ion-content>
     <div class="list">
-      <a class="item item-icon-left" ui-sref="^.search">
-        <i class="icon ion-ios7-search"></i>
-        Search
-      </a>
-      <a class="item item-icon-left" ui-sref="^.playlists">
-        <i class="icon ion-ios7-musical-notes"></i>
-        Playlists
+      <a class="item item-playlist"
+        collection-repeat="playlist in playlists track by playlist.uri"
+        collection-item-width="'100%'"
+        collection-item-height="48"
+        ui-sref="^.playlist({ uri: playlist.uri })">
+        {{playlist.name}}
       </a>
     </div>
   </ion-content>

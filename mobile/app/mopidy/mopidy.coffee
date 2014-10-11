@@ -20,6 +20,7 @@ angular.module('mopidy', ['core'])
   .state 'app.mopidy.search',
     url: '/search'
     templateUrl: 'mopidy/templates/search.html'
+    controller: 'SearchCtrl'
 
   .state 'app.mopidy.playlists',
     url: '/playlists'
@@ -170,6 +171,36 @@ angular.module('mopidy', ['core'])
 
 .controller 'MopidyCtrl', ['$scope', 'mopidy', ($scope, mopidy) ->
   $scope.mopidy = mopidy
+  return
+]
+
+.controller 'TracklistCtrl', ['$scope', '$ionicActionSheet', 'mopidy',
+  ($scope, $ionicActionSheet, mopidy) ->
+    $scope.trackAction = (track) ->
+      $ionicActionSheet.show
+        buttons: [
+          text: 'Queue'
+        ,
+          text: 'Play from here'
+        ]
+        cancelText: 'Cancel'
+        buttonClicked: (index) ->
+          switch index
+            when 0 then mopidy.queueTrack track
+            when 1 then mopidy.setTracklist $scope.tracks, track
+          true
+
+    return
+]
+
+.controller 'SearchCtrl', ['$scope', 'mopidy', ($scope, mopidy) ->
+  $scope.search =
+    query: ''
+
+  $scope.clear = ->
+    $scope.search.query = ''
+
+  return
 ]
 
 .directive 'mopidyPlayButton', ->
@@ -298,25 +329,6 @@ angular.module('mopidy', ['core'])
     tracks: '='
   templateUrl: 'mopidy/templates/tracklist.html'
   controller: 'TracklistCtrl'
-
-.controller 'TracklistCtrl', ['$scope', '$ionicActionSheet', 'mopidy',
-  ($scope, $ionicActionSheet, mopidy) ->
-    $scope.trackAction = (track) ->
-      $ionicActionSheet.show
-        buttons: [
-          text: 'Queue'
-        ,
-          text: 'Play from here'
-        ]
-        cancelText: 'Cancel'
-        buttonClicked: (index) ->
-          switch index
-            when 0 then mopidy.queueTrack track
-            when 1 then mopidy.setTracklist $scope.tracks, track
-          true
-
-    return
-]
 
 .directive 'mopidyPlaybackBar', ->
   restrict: 'E'

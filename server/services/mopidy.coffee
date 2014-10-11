@@ -35,5 +35,5 @@ module.exports = (butler, config) ->
     method = @suffix
     Q.Promise (resolve, reject) ->
       throw new Error 'Client not opened' unless client?
-      client.request method, args, (err, result) ->
+      client.request "core.#{method}", args, (err, result) ->
         if err? then reject err else resolve result

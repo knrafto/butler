@@ -1,6 +1,6 @@
 fs     = require 'fs'
 
-butler = require '../common/butler'
+Butler = require '../common/butler'
 
 module.exports = ->
   butler = new Butler

@@ -13,6 +13,10 @@
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/WebSocket$1.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/CordovaClient.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ququplay/websocket/InsecureX509TrustManager.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ionic/keyboard/IonicKeyboard.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ionic/keyboard/IonicKeyboard$2.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ionic/keyboard/IonicKeyboard$1.class \
+/home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/com/ionic/keyboard/IonicKeyboard$3.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/io/cordova/hellocordova/R$attr.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/io/cordova/hellocordova/R$string.class \
 /home/knrafto/Programming/butler/mobile/platforms/android/ant-build/classes/io/cordova/hellocordova/HelloCordova.class \

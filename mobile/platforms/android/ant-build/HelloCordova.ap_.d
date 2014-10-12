@@ -37,10 +37,14 @@
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/index.html \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/css \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ququplay.websocket.WebSocket \
+/home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ionic.keyboard \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ququplay.websocket.WebSocket/www \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ququplay.websocket.WebSocket/www/phonegap-websocket.js \
+/home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ionic.keyboard/www \
+/home/knrafto/Programming/butler/mobile/platforms/android/assets/www/plugins/com.ionic.keyboard/www/keyboard.js \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/js/templates.js \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/js/common.js \
+/home/knrafto/Programming/butler/mobile/platforms/android/assets/www/js/bundle.js.map \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/js/lib.js \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/js/bundle.js \
 /home/knrafto/Programming/butler/mobile/platforms/android/assets/www/fonts/ionicons.ttf \

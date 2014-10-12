@@ -4,7 +4,7 @@
   "description": "Butler system and server",
   "author": "Kyle Raftogianis <knrafto@gmail.com>",
   "scripts": {
-    "test": "jasmine-node --coffee tests",
+    "test": "mocha --compilers coffee:coffee-script/register",
     "start": "node run"
   },
   "main": "run.js",
@@ -23,7 +23,11 @@
     "ws": "^0.4.32"
   },
   "devDependencies": {
-    "coffee-script": "^1.8.0"
+    "coffee-script": "^1.8.0",
+    "mocha": "^1.21.4",
+    "nock": "^0.48.0",
+    "rewire": "^2.1.0",
+    "sinon": "^1.10.3"
   },
   "license": "MIT"
 }

@@ -1,9 +1,10 @@
+assert         = require 'assert'
 {EventEmitter} = require 'events'
 
 Q              = require 'q'
 rewire         = require 'rewire'
 
-butler         = require '../butler'
+Butler         = require '../../common/butler'
 
 class Server extends EventEmitter
   @server = null
@@ -16,9 +17,11 @@ class Socket extends EventEmitter
     @messages = []
     server.emit 'connection', this
 
-  close: -> @emit 'close'
+  close: ->
+    @emit 'close'
 
-  message: (data) -> @emit 'message', JSON.stringify data
+  message: (data) ->
+    @emit 'message', JSON.stringify data
 
   send: (data) ->
     @messages.push JSON.parse data
@@ -28,19 +31,19 @@ start = rewire '../services/server'
 start.__set__ 'Server', Server
 
 describe 'server', ->
+  butler = null
   server = null
   config =
     host: 'example.com'
     port: 54010
 
   beforeEach ->
-    start config
+    butler = new Butler
+    start butler, config
     server = Server.server
 
-  afterEach -> butler.reset()
-
   it 'should start a server', ->
-    (expect server.options).toEqual config
+    assert.equal server.options, config
 
   describe 'events', ->
     it 'should be sent to all open connections', ->
@@ -49,7 +52,7 @@ describe 'server', ->
       butler.emit 'foo', 1, 2
       butler.emit 'bar', 3, 4
       for socket in sockets
-        (expect socket.messages).toEqual [
+        assert.deepEqual socket.messages, [
           event: 'foo'
           params: [1, 2]
         ,
@@ -63,7 +66,7 @@ describe 'server', ->
       butler.emit 'foo', 1, 2
       socket.close()
       butler.emit 'bar', 3, 4
-      (expect socket.messages).toEqual [
+      assert.deepEqual socket.messages, [
         event: 'foo'
         params: [1, 2]
       ]
@@ -79,7 +82,7 @@ describe 'server', ->
         params: [1, 2]
 
       socket.on 'send', ->
-        (expect socket.messages).toEqual [
+        assert.deepEqual socket.messages, [
           id: 10
           error: null
           result: 3
@@ -96,7 +99,7 @@ describe 'server', ->
         params: [1, 2]
 
       socket.on 'send', (data) ->
-        (expect socket.messages).toEqual [
+        assert.deepEqual socket.messages, [
           id: 10
           error:
             code: 0
@@ -115,7 +118,7 @@ describe 'server', ->
         params: [1, 2]
 
       socket.on 'send', ->
-        (expect socket.messages).toEqual [
+        assert.deepEqual socket.messages, [
           id: 10
           error: null
           result: 3
@@ -132,7 +135,7 @@ describe 'server', ->
         params: [1, 2]
 
       socket.on 'send', ->
-        (expect socket.messages).toEqual [
+        assert.deepEqual socket.messages, [
           id: 10
           error:
             code: 0

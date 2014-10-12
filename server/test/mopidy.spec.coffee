@@ -1,15 +1,17 @@
+assert         = require 'assert'
 {EventEmitter} = require 'events'
 
 rewire         = require 'rewire'
 sinon          = require 'sinon'
 
-butler         = require '../butler'
+Butler         = require '../../common/butler'
 
 class Client extends EventEmitter
-  @clients = []
+  @client = null
 
   constructor: ->
     @requests = {}
+    Client.client = this
 
   open: (@url) -> Client.clients[@url] = this
 
@@ -32,17 +34,18 @@ start.__set__ 'Client', Client
 
 describe 'mopidy', ->
   url = 'ws://example.com'
+  butler = null
   client = null
   clock = null
 
   beforeEach ->
-    start url: url
-    client = Client.clients[url]
-
-  afterEach -> butler.reset()
+    butler = new Butler
+    start butler, url: url
+    client = Client.client
 
   it 'should open a connection to the mopidy server', ->
-    (expect client.url).toEqual url
+    butler.on 'mopidy.connect', ->
+      assert.equal client.url, url
 
   it 'should emit "mopidy.connect" when opened', (done) ->
     butler.on 'mopidy.connect', done
@@ -67,6 +70,6 @@ describe 'mopidy', ->
   it 'should forward mopidy events', (done) ->
     args = foo: 42
     butler.on 'mopidy.test', (data) ->
-      (expect data).toEqual args
+      assert.equal data, args
       done()
     client.emit 'event', 'test', args
